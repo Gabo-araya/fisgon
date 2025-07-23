@@ -1,0 +1,59 @@
+{% extends "panel/base_admin.html" %} {% load static %} {% block title %} {{
+page }} {% endblock title %}
+
+<!-- Specific Page CSS goes HERE  -->
+{% block stylesheets %}{% endblock stylesheets %} {% block content %}
+
+<main id="main" class="main">
+    <div class="pagetitle">
+        <h1><i class="{{ icon }}"></i> {{ page }}</h1>
+    </div>
+    <!-- End Page Title -->
+
+    <section class="section dashboard">
+        <div class="row">
+            <div class="col-lg-12">
+                <h1>Dashboard Viewer</h1>
+                <div class="row">
+
+                left side
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Left side columns -->
+            <div class="col-lg-4">
+                col-lg-4
+            </div>
+            <!-- End Left side columns -->
+
+            <!-- center columns -->
+            <div class="col-lg-4">
+                col-lg-4
+            </div>
+            <!-- End center columns -->
+
+            <!-- Right side columns -->
+            <div class="col-lg-4">
+                col-lg-4
+            </div>
+            <!-- End Right side columns -->
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                col-md-6
+            </div>
+            <div class="col-md-6">
+                col-md-6
+            </div>
+        </div>
+    </section>
+</main>
+<!-- End #main -->
+
+{% endblock content %}
+
+<!-- Specific Page JS goes HERE  -->
+{% block javascripts %}{% endblock javascripts %}

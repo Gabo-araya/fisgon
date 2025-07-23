@@ -2,6 +2,7 @@
 Django==5.2.4
 djangorestframework==3.14.0
 django-cors-headers==4.3.1
+whitenoise=6.9.0
 
 # Base de datos
 psycopg2-binary==2.9.7
@@ -34,7 +35,7 @@ numpy==1.25.2
 reportlab==4.0.7
 matplotlib==3.8.2
 
-# Autenticación y autorización 
+# Autenticación y autorización
 django-allauth==0.57.0
 
 # Utilidades

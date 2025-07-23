@@ -111,9 +111,19 @@ _Datos de contexto para el uso del sitio web_
 
 - Usuario: `admin4`
 - Password: `asdf.1234`
+- Tipo: `admin`
 
 - Usuario: `gabo`
 - Password: `asdf.1234`
+- Tipo: `admin`
+
+- Usuario: `crawler`
+- Password: `asdf.1234`
+- Tipo: `crawler`
+
+- Usuario: `viewer`
+- Password: `asdf.1234`
+- Tipo: `viewer`
 
 
 ### Funcionalidades
