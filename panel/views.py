@@ -20,6 +20,7 @@ from panel.decorators import authenticated_user, allowed_users
 from panel.utils import info_header_user, user_group
 
 # Importar modelos desde apps de backend
+from panel.models import Profile_Model
 
 # Importación de forms
 
@@ -211,7 +212,7 @@ def ver_perfil(request, username=None):
         try:
             profile = request.user.profile_model
         except:
-            return redirect('account_login')
+            return redirect('salir')
 
     #print(request.user.profile_model)
     context = {
