@@ -44,17 +44,6 @@ def test(request, *args, **kwargs):
     # return render(request, 'login/register_user.html', context)
 
 
-@login_required(login_url='entrar')
-def blank(request, *args, **kwargs):
-    '''Blank'''
-    info_user = info_header_user(request)
-    context = {
-        'page' : 'Login',
-        'info_user': info_user,
-    }
-    return render(request, 'panel/blank.html', context)
-
-
 def salir(request, *args, **kwargs):
     logout(request)
     return redirect('entrar')
@@ -310,6 +299,21 @@ def eliminar_perfil(request):
 # Otras URLS
 #=======================================================================================================================================
 
+
+@login_required(login_url='entrar')
+def configuracion(request, *args, **kwargs):
+    '''Configuración'''
+
+    info_user = info_header_user(request)
+
+    context = {
+        'page' : 'Configuración',
+        #'object_list': object_list,
+        'info_user': info_user,
+    }
+    return render(request, 'panel/configuracion.html', context)
+
+
 @login_required(login_url='entrar')
 def ayuda(request, *args, **kwargs):
     '''Ayuda'''
@@ -322,3 +326,15 @@ def ayuda(request, *args, **kwargs):
         'info_user': info_user,
     }
     return render(request, 'panel/ayuda.html', context)
+
+
+
+@login_required(login_url='entrar')
+def blank(request, *args, **kwargs):
+    '''Blank'''
+    info_user = info_header_user(request)
+    context = {
+        'page' : 'Blank',
+        'info_user': info_user,
+    }
+    return render(request, 'panel/blank.html', context)

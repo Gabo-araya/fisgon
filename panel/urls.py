@@ -13,6 +13,7 @@ urlpatterns = [
     path('dashboard_admin/', panel.views.dashboard_admin, name='dashboard_admin'),
     path('dashboard_crawler/', panel.views.dashboard_crawler, name='dashboard_crawler'),
     path('dashboard_viewer/', panel.views.dashboard_viewer, name='dashboard_viewer'),
+    path('configuracion/', panel.views.configuracion, name='configuracion'),
     path('ayuda/', panel.views.ayuda, name='ayuda'),
 
 #perfil

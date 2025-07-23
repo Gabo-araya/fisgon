@@ -5,7 +5,7 @@
     <ul class="sidebar-nav" id="sidebar-nav">
         <li class="nav-item">
             <a class="nav-link {% if 'dashboard' in request.path %} collapsed {% endif %}"
-                href="#">
+                href="{% url 'index' %}">
                 <i class="bi bi-grid"></i>
                 <span>Dashboard
                     {% if 'admin' in request.user.groups.all.0.name %}
@@ -44,7 +44,7 @@
         <li class="nav-heading">Ayuda</li>
         <li class="nav-item">
             <a class="nav-link {% if 'ayuda' in request.path %} collapsed {% endif %}"
-                href="#">
+                href="{% url 'ayuda' %}">
                 <i class="bi bi-question-circle"></i>
                 <span>Ayuda</span>
             </a>
@@ -94,7 +94,7 @@
             </a>
         </li>
 
-        {% comment %}
+
         <li class="nav-item">
             <a class="nav-link {% if 'blank' in request.path %} collapsed {% endif %}"
                 href="{% url 'blank' %}">
@@ -102,7 +102,7 @@
                 <span>Blank</span>
             </a>
         </li>
-        {% endcomment %}
+
 
     {% endif %}
 
@@ -110,21 +110,14 @@
 
     {% if 'admin' in request.user.groups.all.0.name %}
         <li class="nav-item">
-            <a class="nav-link {% if 'configura' in request.path %} collapsed {% endif %}"
-                href="#">
+            <a class="nav-link {% if 'configuracion' in request.path %} collapsed {% endif %}"
+                href="{% url 'configuracion' %}">
                 <i class="bi bi-sliders"></i>
                 <span>Configuración</span>
             </a>
         </li>
     {% endif %}
 
-        <li class="nav-item">
-            <a class="nav-link {% if 'perfil' in request.path %} collapsed {% endif %}"
-                href="{% url 'ver_perfil' %}">
-                <i class="bi bi-person"></i>
-                <span>Perfil</span>
-            </a>
-        </li>
         <li class="nav-item">
             <a class="nav-link {% if 'salir' in request.path %} collapsed {% endif %}"
                 href="{% url 'salir' %}">

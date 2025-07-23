@@ -28,21 +28,33 @@
             </div> <!-- end col -->
         </div> <!-- end row -->
 
-        <div class="max-w-lg mx-auto flex flex-col items-center pt-20 px-4">
-            <img class="w-36 h-36 rounded-full object-cover mb-4" src="{{ profile.avatar }}" />
-            {{ profile.avatar.url }}
-            <div class="text-center">
-                <h1>{{ profile.name }}</h1>
-                <div class="text-gray-400 mb-2 -mt-3">@{{ profile.user.username }}</div>
-                {% if profile.info %}
-                <div class="mt-8">{{ profile.info|linebreaksbr }}</div>
-                {% endif %}
-            </div>
-        </div>
+
+
+
+        <!-- col-12 -->
+        <div class="row">
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-body">
+                    <h5 class="card-title">col-6</h5>
+                    <p>This is an example page with no content. You can use it as a starter for your custom pages.</p>
+                    </div>
+                </div>
+            </div> <!-- end col -->
+
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-body">
+                    <h5 class="card-title">col-6</h5>
+                    <p>This is an example page with no content. You can use it as a starter for your custom pages.</p>
+                    </div>
+                </div>
+            </div> <!-- end col -->
+        </div> <!-- end row -->
 
     </section>
-</main>
-<!-- End #main -->
+
+</main><!-- End #main -->
 
 {% endblock content %}
 
