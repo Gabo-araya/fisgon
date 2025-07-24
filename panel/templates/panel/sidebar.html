@@ -28,14 +28,14 @@
             <a class="nav-link {% if 'crawler' in request.path %} collapsed {% endif %}"
                 href="#" >
                 <i class="bi bi-incognito"></i>
-                <span>Crawler</span>
+                <span>Crawler *</span>
             </a>
         </li>
         <li class="nav-item">
             <a class="nav-link {% if 'report' in request.path %} collapsed {% endif %}"
                 href="#">
                 <i class="bi bi-bar-chart-line"></i>
-                <span>Reportes</span>
+                <span>Reportes *</span>
             </a>
         </li>
 
@@ -50,51 +50,41 @@
             </a>
         </li>
 
-    {% comment %}
     {% if 'admin' in request.user.groups.all.0.name %}
         <li class="nav-item">
             <a class="nav-link {% if 'articulo' in request.path %} collapsed {% endif %}"
                 href="#">
                 <i class="bi bi-file-richtext"></i>
-                <span>Artículos de Ayuda</span>
+                <span>Artículos de Ayuda *</span>
             </a>
         </li>
         <li class="nav-item">
             <a class="nav-link {% if 'categoria' in request.path %} collapsed {% endif %}"
                 href="#">
                 <i class="bi bi-tags"></i>
-                <span>Categorías</span>
+                <span>Categorías *</span>
             </a>
         </li>
         <li class="nav-item">
             <a class="nav-link {% if 'imagen' in request.path %} collapsed {% endif %}"
                 href="#">
                 <i class="bi bi-tags"></i>
-                <span>Imágenes</span>
+                <span>Imágenes *</span>
             </a>
         </li>
     {% endif %}
-    {% endcomment %}
+
 
     {% if 'admin' in request.user.groups.all.0.name %}
         <!-- Sección Usuarios -->
         <li class="nav-heading">Usuarios</li>
         <li class="nav-item">
             <a class="nav-link {% if 'usuario' in request.path %} collapsed {% endif %}"
-                href="#">
+                href="{% url 'listar_usuarios' %}">
                 <i class="bi bi-people"></i>
                 <span>Usuarios</span>
             </a>
         </li>
-        <li class="nav-item">
-            <a class="nav-link {% if 'regist' in request.path %} collapsed {% endif %}"
-                href="#">
-                <i class="bi bi-card-list"></i>
-                <span>Registro de usuarios</span>
-            </a>
-        </li>
-
-
         <li class="nav-item">
             <a class="nav-link {% if 'blank' in request.path %} collapsed {% endif %}"
                 href="{% url 'blank' %}">
@@ -102,13 +92,11 @@
                 <span>Blank</span>
             </a>
         </li>
-
-
     {% endif %}
 
+    {% if 'admin' in request.user.groups.all.0.name %}
         <li class="nav-heading">Configuración</li>
 
-    {% if 'admin' in request.user.groups.all.0.name %}
         <li class="nav-item">
             <a class="nav-link {% if 'configuracion' in request.path %} collapsed {% endif %}"
                 href="{% url 'configuracion' %}">
@@ -119,12 +107,16 @@
     {% endif %}
 
         <li class="nav-item">
-            <a class="nav-link {% if 'salir' in request.path %} collapsed {% endif %}"
-                href="{% url 'salir' %}">
-                <i class="bi bi-box-arrow-right"></i>
-                <span>Salir</span>
-            </a>
+            <div class="d-grid gap-2 mt-3">
+                <a href="{% url 'salir' %}" class="btn btn-outline-danger rounded-pill" title="Salir" data-toggle="tooltip" data-original-title="Salir">
+                    <i class="bi bi-box-arrow-right"></i>
+                    <span>Salir</span>
+                </a>
+            </div>
         </li>
+
     </ul>
+
+
 </aside>
 <!-- End Sidebar-->

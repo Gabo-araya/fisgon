@@ -2,10 +2,9 @@ from django.urls import path, include
 from django.conf.urls.static import static
 from django.contrib.auth import views as auth_views
 from django.views.i18n import JavaScriptCatalog
+
 import panel.views
-
-
-#from panel.views import *
+# from panel.views import *
 
 urlpatterns = [
 #dashboard
@@ -41,6 +40,20 @@ urlpatterns = [
     path('login/', panel.views.entrar, name='login'),
     path('entrar/', panel.views.entrar, name='entrar'),
     path('salir/', panel.views.salir, name='salir'),
+
+
+
+#=======================================================================================================================================
+# Gestión de usuarios
+#=======================================================================================================================================
+
+    path('usuarios/', panel.views.listar_usuarios, name='listar_usuarios'), # user_list
+    path('usuarios/crear/', panel.views.crear_usuario, name='crear_usuario'), # user_create
+    path('usuarios/modificar/<int:user_id>/', panel.views.modificar_usuario, name='modificar_usuario'), # user_edit
+    path('usuarios/cambiar_password/<int:user_id>/', panel.views.cambiar_password_usuario, name='cambiar_password_usuario'), # user_change_password
+    path('usuarios/eliminar/<int:user_id>/', panel.views.eliminar_usuario, name='eliminar_usuario'), # user_delete
+
+
 
 #=======================================================================================================================================
 # Reset de password

@@ -7,7 +7,8 @@ from panel.models import Profile_Model
 
 def info_header_user(request, *args, **kwargs):
     if request.user.groups.filter(name='admin').exists():
-        return Profile_Model.objects.get(user=request.user.id)
+        # return Profile_Model.objects.get(user=request.user.id)
+        return request.user
 
     # group = None
     # if request.user.groups.exists():
@@ -34,3 +35,8 @@ def user_group(request, *args, **kwargs):
         user_group = 'viewer'
 
     return user_group
+
+
+def is_admin(user):
+    '''Verifica si el usuario pertenece al grupo 'admin'.'''
+    return user.groups.filter(name='admin').exists()

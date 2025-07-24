@@ -1,0 +1,101 @@
+{% extends "panel/base_admin.html" %}
+{% load static %}
+{% block title %} {{ page }} {% endblock title %}
+
+<!-- Specific Page CSS goes HERE  -->
+{% block stylesheets %}{% endblock stylesheets %}
+
+{% block content %}
+
+<main id="main" class="main">
+
+  <div class="pagetitle">
+  <h1>{{ page }}</h1>
+    {% include 'panel/breadcrumb.html' %}
+  </div><!-- End Page Title -->
+
+
+  <section class="section">
+
+    <div class="card">
+        <div class="card-header">
+            <div class="d-flex justify-content-between align-items-start">
+                <h2 class="card-title">Lista de {{ plural|capfirst }}</h2>
+                <div class="card-text ">
+                    <a href="{% url url_crear %}" class="btn btn-primary btn-round">
+                        <i class="bi bi-plus-circle-fill"></i> Agregar {{ singular }}</a>
+                </div>
+            </div>
+        </div>
+        <div class="card-body">
+
+                {% if messages %}
+                    <ul class="messages">
+                        {% for message in messages %}
+                            <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+            {% if users %}
+
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Nombre de Usuario</th>
+                            <th>Correo</th>
+                            <th>Grupo(s)</th>
+                            <th>Activo</th>
+                            <th>Staff</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user_data in users %}
+                            <tr>
+                                <td>{{ user_data.user.username }}</td>
+                                <td>{{ user_data.user.email }}</td>
+                                <td>{{ user_data.groups }}</td>
+                                <td>{% if user_data.user.is_active %}Sí{% else %}No{% endif %}</td>
+                                <td>{% if user_data.user.is_staff %}Sí{% else %}No{% endif %}</td>
+                                <td>
+                                    <a href="{% url 'modificar_usuario' user_data.user.id %}" class="btn btn-sm btn-info rounded-pill" title="Modificar usuario">
+                                        <i class="bi bi-pencil-square"></i>
+                                    </a>
+                                    <a href="{% url 'cambiar_password_usuario' user_data.user.id %}" class="btn btn-sm btn-warning rounded-pill" title="Cambiar Contraseña">
+                                        <i class="bi bi-asterisk"></i>
+                                    </a>
+                                    <a href="{% url 'eliminar_usuario' user_data.user.id %}" class="btn btn-sm btn-danger rounded-pill" title="Eliminar usuario">
+                                        <i class="bi bi-trash3"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+
+                <div class="alert alert-warning fade show" role="alert">
+                    No existen registros. Este mensaje no debería mostrarse.
+                </div>
+
+            {% endif %}
+
+        </div>
+        <div class="card-footer">
+            <div class="d-flex justify-content-between align-items-start">
+                <div class="card-text"></div>
+                <div class="card-text ">
+                    <a href="{% url url_crear %}" class="btn btn-primary btn-round">
+                        <i class="bi bi-plus-circle-fill"></i> Agregar {{ singular }}</a>
+                </div>
+            </div>
+        </div>
+    </div>
+  </section>
+
+</main><!-- End #main -->
+
+{% endblock content %}
+
+<!-- Specific Page JS goes HERE  -->
+{% block javascripts %}{% endblock javascripts %}

@@ -29,5 +29,5 @@ class Profile_Model(models.Model):
         try:
             avatar = self.image.url
         except:
-            avatar = static('panel/images/avatar.svg')
+            avatar = static('panel/images/default_avatar_crawler.png')
         return avatar
