@@ -100,10 +100,232 @@ Seguir los siguientes pasos para la instalación local.
 	- `python3 manage.py runserver`
 	- Iniciar en un puerto específico (8000):`python3 manage.py runserver 8000`
 
-## Datos de contexto
+## Flujo de Trabajo Completo
 
-_Datos de contexto para el uso del sitio web_
+### **1. Proceso de Crawling (Descubrimiento)**
 
+```
+Usuario configura target → Crawler inicia → Descubre URLs → Filtra por tipo → Queue de procesamiento
+```
+
+**Detalles del proceso:**
+
+1. **Configuración inicial**:
+   - Usuario define dominio objetivo (ej: `example.com`)
+   - Establece profundidad máxima (niveles de recursión)
+   - Define tipos de archivo de interés
+   - Configura rate limiting (requests/segundo)
+
+2. **Descubrimiento de URLs**:
+   - Inicia con robots.txt y sitemap.xml
+   - Rastrea links HTML recursivamente
+   - Identifica archivos por extensión
+   - Usa técnicas como directory bruteforcing suave
+   - Almacena URLs encontradas en cola Redis
+
+3. **Filtrado inteligente**:
+   - Elimina duplicados
+   - Filtra por tamaño de archivo (evita archivos gigantes)
+   - Prioriza por tipo de archivo (PDFs > Imágenes > Multimedia)
+   - Respeta blacklists y whitelist definidas
+
+### **2. Proceso de Extracción (Harvesting)**
+
+```
+URL → Descarga → Identificación de tipo → Extractor específico → Metadatos estructurados
+```
+
+**Por cada archivo encontrado:**
+
+1. **Descarga controlada**:
+   - Verificación de Content-Type
+   - Límite de tamaño (ej: máximo 50MB)
+   - Timeout configurable
+   - Manejo de errores HTTP
+
+2. **Identificación precisa**:
+   - Magic numbers (primeros bytes del archivo)
+   - Extensión vs contenido real
+   - Validación de formato
+
+3. **Extracción especializada**:
+
+   **Para PDFs:**
+   ```
+   Archivo PDF → PyPDF2/pdfplumber →
+   {
+     'author': 'Juan Pérez',
+     'creator': 'Microsoft Word',
+     'creation_date': '2023-05-15',
+     'modification_date': '2023-05-16',
+     'title': 'Informe Confidencial',
+     'subject': 'Análisis Financiero Q2',
+     'producer': 'Adobe Acrobat',
+     'pdf_version': '1.4'
+   }
+   ```
+
+   **Para Imágenes:**
+   ```
+   Imagen JPEG → ExifRead/Pillow →
+   {
+     'camera_make': 'Canon',
+     'camera_model': 'EOS R5',
+     'datetime_original': '2023-05-15 14:30:22',
+     'gps_coordinates': '(lat: -33.4489, lon: -70.6693)',
+     'software': 'Adobe Lightroom 6.0',
+     'artist': 'Fotógrafo Profesional',
+     'copyright': '© Empresa XYZ 2023'
+   }
+   ```
+
+   **Para Office:**
+   ```
+   Word Doc → python-docx →
+   {
+     'author': 'Maria González',
+     'last_modified_by': 'Pedro Silva',
+     'created': '2023-05-10',
+     'modified': '2023-05-15',
+     'company': 'Empresa Confidencial SA',
+     'manager': 'Director TI',
+     'revision': '5',
+     'template': 'plantilla_corporativa.dotx'
+   }
+   ```
+
+### **3. Proceso de Análisis (Intelligence)**
+
+```
+Metadatos → Normalización → Análisis de patrones → Scoring de riesgo → Alertas
+```
+
+**Análisis multinivel:**
+
+1. **Normalización de datos**:
+   - Estandarización de fechas
+   - Limpieza de nombres (quitar acentos, mayúsculas)
+   - Categorización de software
+   - Geocodificación de coordenadas GPS
+
+2. **Detección de patrones**:
+
+   **Usuarios frecuentes:**
+   ```python
+   # Ejemplo de patrón detectado
+   {
+     'pattern_type': 'frequent_author',
+     'value': 'juan.perez@empresa.com',
+     'occurrences': 47,
+     'risk_score': 8.5,
+     'file_types': ['pdf', 'docx', 'xlsx'],
+     'date_range': '2023-01-15 to 2023-05-20'
+   }
+   ```
+
+   **Software desactualizado:**
+   ```python
+   {
+     'pattern_type': 'outdated_software',
+     'software': 'Adobe Acrobat 9.0',
+     'version_year': 2008,
+     'risk_score': 9.2,
+     'vulnerability_count': 23,
+     'affected_files': 12
+   }
+   ```
+
+   **Información geográfica:**
+   ```python
+   {
+     'pattern_type': 'location_exposure',
+     'coordinates': [(-33.4489, -70.6693), (-33.4512, -70.6580)],
+     'location_cluster': 'Santiago Centro, Chile',
+     'risk_score': 7.8,
+     'files_with_gps': 8
+   }
+   ```
+
+### **4. Proceso de Almacenamiento (Persistencia)**
+
+```
+Metadatos → Validación → Base de datos → Indexación → API de consulta
+```
+
+**Estructura de datos propuesta:**
+
+```sql
+-- Tabla principal de crawling sessions
+crawl_sessions (
+    id, user_id, target_domain, status,
+    started_at, completed_at, total_files_found
+)
+
+-- URLs descubiertas
+discovered_urls (
+    id, session_id, url, file_type, file_size,
+    status, discovered_at, processed_at
+)
+
+-- Metadatos extraídos
+extracted_metadata (
+    id, url_id, metadata_type, field_name,
+    field_value, confidence_score, extracted_at
+)
+
+-- Patrones detectados
+detected_patterns (
+    id, session_id, pattern_type, description,
+    risk_score, affected_files_count, details_json
+)
+```
+
+### **5. Proceso de Visualización (Dashboard)**
+
+```
+Datos → Agregación → APIs → Frontend → Visualizaciones interactivas
+```
+
+**Tipos de visualización:**
+
+1. **Dashboard principal**:
+   - Métricas en tiempo real (archivos procesados, patrones detectados)
+   - Timeline de actividad del crawl
+   - Top 10 autores más frecuentes
+   - Mapa de calor de tipos de archivo
+
+2. **Análisis detallado**:
+   - Gráfico de red de relaciones autor-documento
+   - Timeline de versiones de software
+   - Mapa geográfico de coordenadas GPS
+   - Análisis de riesgo por categoría
+
+3. **Reportes exportables**:
+   - PDF ejecutivo con hallazgos principales
+   - CSV detallado para análisis técnico
+   - Recomendaciones de mitigación
+
+
+
+### Funcionalidades activas
+
+- Creación de usuario (User)
+- Completitud de campos asociados de usuario (Onboarding)
+- Modificación de settings
+- Modificación de correo electrónico
+- Validación de correo electrónico
+- Eliminación de usuario
+- Inicio de sesión de usuario
+- Cierre de sesión de usuario
+
+
+
+
+## Herramientas de construcción
+
+_Estas son las herramientas que se han utilizado en este proyecto_
+
+* [Django](https://www.djangoproject.com/) - El framework web usado
 
 ### Acceso a sección de administración de Django
 
@@ -124,25 +346,6 @@ _Datos de contexto para el uso del sitio web_
 - Usuario: `viewer`
 - Password: `asdf.1234`
 - Tipo: `viewer`
-
-
-### Funcionalidades
-
-- Creación de usuario (User)
-- Completitud de campos asociados de usuario (Onboarding)
-- Modificación de settings
-- Modificación de correo electrónico
-- Validación de correo electrónico
-- Eliminación de usuario
-- Inicio de sesión de usuario
-- Cierre de sesión de usuario
-
-
-## Herramientas de construcción
-
-_Estas son las herramientas que se han utilizado en este proyecto_
-
-* [Django](https://www.djangoproject.com/) - El framework web usado
 
 
 ## Autor ✒️
