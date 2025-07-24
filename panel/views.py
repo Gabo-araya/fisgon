@@ -1,8 +1,9 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from django.http import HttpResponse, request
+# from django.http import HttpResponse
+from django.http import request
 from django.urls import reverse
 from urllib.parse import urlencode
-from django.db.models import Q      #para búsquedas
+# from django.db.models import Q      #para búsquedas
 
 
 # importación de funcionalidad para login
@@ -195,11 +196,13 @@ def listar_usuarios(request):
     users_with_groups = []
     for user in users:
         groups = [group.name for group in user.groups.all()]
-        # Puedes añadir más información del perfil si quieres
+
+        # Añadir más información del perfil
         try:
             profile = Profile_Model.objects.get(user=user)
         except Profile_Model.DoesNotExist:
             profile = None # Manejar usuarios sin perfil si es posible
+
         users_with_groups.append({
             'user': user,
             'groups': ', '.join(groups) if groups else 'Ninguno',
@@ -207,6 +210,8 @@ def listar_usuarios(request):
         })
 
     info_user = info_header_user(request)
+    # print(info_user.id)
+
     context = {
         'page' : 'Usuarios',
         'icon' : 'bi bi-grid',
@@ -568,9 +573,43 @@ def ayuda(request, *args, **kwargs):
 @login_required(login_url='entrar')
 def blank(request, *args, **kwargs):
     '''Blank'''
+
+    # Ejemplo de lista de usuarios
+    users = User.objects.all().order_by('username')
+    users_with_groups = []
+    for user in users:
+        groups = [group.name for group in user.groups.all()]
+
+        # Añadir más información del perfil
+        try:
+            profile = Profile_Model.objects.get(user=user)
+        except Profile_Model.DoesNotExist:
+            profile = None # Manejar usuarios sin perfil si es posible
+
+        users_with_groups.append({
+            'user': user,
+            'groups': ', '.join(groups) if groups else 'Ninguno',
+            'profile': profile,
+        })
+
     info_user = info_header_user(request)
+
     context = {
         'page' : 'Blank',
+
+        'icon' : 'bi bi-grid',
         'info_user': info_user,
+
+        'singular': 'usuario',
+        'plural': 'usuarios',
+        'url_listar': 'listar_usuarios',
+        'url_crear': 'crear_usuario',
+        'url_ver': 'ver_usuario',
+        'url_editar': 'modificar_usuario',
+        'url_eliminar': 'eliminar_usuario',
+        # 'success_create': success_create,
+        # 'success_edit': success_edit,
+        # 'success_delete': success_delete,
+        'users': users_with_groups,
     }
     return render(request, 'panel/blank.html', context)

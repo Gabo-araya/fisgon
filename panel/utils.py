@@ -6,9 +6,9 @@ from panel.models import Profile_Model
 #=======================================================================================================================================
 
 def info_header_user(request, *args, **kwargs):
-    if request.user.groups.filter(name='admin').exists():
-        # return Profile_Model.objects.get(user=request.user.id)
-        return request.user
+    # if request.user.groups.filter(name='admin').exists():
+    #     # return Profile_Model.objects.get(user=request.user.id)
+    #     return request.user.id
 
     # group = None
     # if request.user.groups.exists():
@@ -21,6 +21,7 @@ def info_header_user(request, *args, **kwargs):
     #
     # pass
     # return group
+    return request.user
 
 
 

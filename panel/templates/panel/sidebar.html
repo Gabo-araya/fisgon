@@ -50,29 +50,6 @@
             </a>
         </li>
 
-    {% if 'admin' in request.user.groups.all.0.name %}
-        <li class="nav-item">
-            <a class="nav-link {% if 'articulo' in request.path %} collapsed {% endif %}"
-                href="#">
-                <i class="bi bi-file-richtext"></i>
-                <span>Artículos de Ayuda *</span>
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link {% if 'categoria' in request.path %} collapsed {% endif %}"
-                href="#">
-                <i class="bi bi-tags"></i>
-                <span>Categorías *</span>
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link {% if 'imagen' in request.path %} collapsed {% endif %}"
-                href="#">
-                <i class="bi bi-tags"></i>
-                <span>Imágenes *</span>
-            </a>
-        </li>
-    {% endif %}
 
 
     {% if 'admin' in request.user.groups.all.0.name %}
@@ -85,18 +62,12 @@
                 <span>Usuarios</span>
             </a>
         </li>
-        <li class="nav-item">
-            <a class="nav-link {% if 'blank' in request.path %} collapsed {% endif %}"
-                href="{% url 'blank' %}">
-                <i class="bi bi-file-earmark"></i>
-                <span>Blank</span>
-            </a>
-        </li>
     {% endif %}
 
-    {% if 'admin' in request.user.groups.all.0.name %}
+
         <li class="nav-heading">Configuración</li>
 
+    {% if 'admin' in request.user.groups.all.0.name %}
         <li class="nav-item">
             <a class="nav-link {% if 'configuracion' in request.path %} collapsed {% endif %}"
                 href="{% url 'configuracion' %}">
@@ -105,6 +76,29 @@
             </a>
         </li>
     {% endif %}
+
+        <li class="nav-item">
+            <a class="nav-link {% if 'cambiar_password' in request.path %} collapsed {% endif %}"
+                href="{% url 'cambiar_password_usuario' request.user.id %}">
+                <i class="bi bi-asterisk"></i>
+                <span>Cambiar Password</span>
+            </a>
+        </li>
+
+        <li class="nav-heading"><hr /></li>
+
+    {% if 'admin' in request.user.groups.all.0.name %}
+        <li class="nav-item">
+            <div class="d-grid gap-2 mt-3">
+                <a href="{% url 'blank' %}" class="btn btn-outline-secondary rounded-pill" title="Blank">
+                    <i class="bi bi-box-arrow-right"></i>
+                    <span>Blank</span>
+                </a>
+            </div>
+        </li>
+        <li class="nav-heading"><hr /></li>
+    {% endif %}
+
 
         <li class="nav-item">
             <div class="d-grid gap-2 mt-3">

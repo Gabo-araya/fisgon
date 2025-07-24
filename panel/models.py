@@ -16,18 +16,18 @@ class Profile_Model(models.Model):
     def __str__(self):
         return str(self.user)
 
-    @property
-    def name(self):
-        if self.displayname:
-            name = self.displayname
-        else:
-            name = self.user.username
-        return name
+    # @property
+    # def name(self):
+    #     if self.displayname:
+    #         name = self.displayname
+    #     else:
+    #         name = self.user.username
+    #     return name
 
-    @property
-    def avatar(self):
-        try:
-            avatar = self.image.url
-        except:
-            avatar = static('panel/images/default_avatar_crawler.png')
-        return avatar
+    # @property
+    # def avatar(self):
+    #     try:
+    #         avatar = self.image.url
+    #     except:
+    #         avatar = static('panel/images/default_avatar_crawler.png')
+    #     return avatar

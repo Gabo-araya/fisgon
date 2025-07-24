@@ -46,7 +46,6 @@ INSTALLED_APPS = [
     'django_htmx',
 
     # Apps
-    'blog.apps.BlogConfig',
     'panel.apps.PanelConfig',
 
 ]

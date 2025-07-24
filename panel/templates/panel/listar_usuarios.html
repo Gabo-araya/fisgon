@@ -15,83 +15,163 @@
   </div><!-- End Page Title -->
 
 
-  <section class="section">
+    <!-- Lista  de elementos con acciones -->
+    <section class="section">
 
-    <div class="card">
-        <div class="card-header">
-            <div class="d-flex justify-content-between align-items-start">
-                <h2 class="card-title">Lista de {{ plural|capfirst }}</h2>
-                <div class="card-text ">
-                    <a href="{% url url_crear %}" class="btn btn-primary btn-round">
-                        <i class="bi bi-plus-circle-fill"></i> Agregar {{ singular }}</a>
+          <div class="card">
+            <div class="card-header">
+                <div class="d-flex justify-content-between align-items-start">
+                    <h2 class="card-title">Lista de {{ plural|capfirst }}</h2>
+                    <div class="card-text ">
+                        <a href="#" class="btn btn-outline-success btn-round">
+                            <i class="bi bi-plus-circle-fill"></i> Agregar {{ singular }}</a>
+                    </div>
                 </div>
             </div>
-        </div>
-        <div class="card-body">
+            <div class="card-body">
 
-                {% if messages %}
-                    <ul class="messages">
-                        {% for message in messages %}
-                            <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
-                        {% endfor %}
-                    </ul>
+                    {% if messages %}
+                        <ul class="messages">
+                            {% for message in messages %}
+                                <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+                {% if users %}
+
+                <!-- List group with actions -->
+                <ul class="list-group ">
+
+                {% for user_data in users %}
+                    <li class="list-group-item d-flex justify-content-between align-items-start">
+                        <div class="ms-2 me-auto">
+                            <div>
+                                <span class="fw-bold">{{ user_data.user.username }}</span> |
+                                <span class="badge border border-purple border-1 text-purple rounded-pill"> <i class="bi bi-person me-1"></i>{{ user_data.groups }}</span>
+
+                                {% if user_data.user.is_active %}
+                                    <span class="badge border border-success border-1 text-success rounded-pill"> <i class="bi bi-check-circle me-1"></i>Activo</span>
+                                {% else %}
+                                    <span class="badge border border-danger border-1 text-danger rounded-pill"> <i class="bi bi-exclamation-octagon me-1"></i>Inactivo</span>
+                                {% endif %}
+
+                                <!--span class="badge border border-danger border-1 text-danger rounded-pill"> <i class="bi bi-exclamation-octagon me-1"></i>Inactivo</span-->
+                            </div>
+                            <p class="card-text">{{ user_data.user.email }}</p>
+
+                        </div>
+                        <div class="card-text ">
+                            <a href="{% url 'modificar_usuario' user_data.user.id %}" class="btn btn-outline-primary rounded-pill" title="Modificar usuario">
+                                <i class="bi bi-pencil-square"></i>
+                            </a>
+                            <a href="{% url 'cambiar_password_usuario' user_data.user.id %}" class="btn btn-outline-info rounded-pill" title="Cambiar Contraseña">
+                                <i class="bi bi-asterisk"></i>
+                            </a>
+                            <a href="{% url 'eliminar_usuario' user_data.user.id %}" class="btn btn-outline-danger rounded-pill" title="Eliminar usuario">
+                                <i class="bi bi-trash3"></i>
+                            </a>
+                        </div>
+                    </li>
+                {% endfor %}
+                </ul><!-- End  -->
+
+                {% else %}
+
+                    <div class="alert alert-warning fade show" role="alert">
+                        No existen registros. Este mensaje no debería mostrarse.
+                    </div>
+
                 {% endif %}
-            {% if users %}
 
-                <table class="table">
-                    <thead>
-                        <tr>
-                            <th>Nombre de Usuario</th>
-                            <th>Correo</th>
-                            <th>Grupo(s)</th>
-                            <th>Activo</th>
-                            <th>Staff</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for user_data in users %}
-                            <tr>
-                                <td>{{ user_data.user.username }}</td>
-                                <td>{{ user_data.user.email }}</td>
-                                <td>{{ user_data.groups }}</td>
-                                <td>{% if user_data.user.is_active %}Sí{% else %}No{% endif %}</td>
-                                <td>{% if user_data.user.is_staff %}Sí{% else %}No{% endif %}</td>
-                                <td>
-                                    <a href="{% url 'modificar_usuario' user_data.user.id %}" class="btn btn-sm btn-info rounded-pill" title="Modificar usuario">
-                                        <i class="bi bi-pencil-square"></i>
-                                    </a>
-                                    <a href="{% url 'cambiar_password_usuario' user_data.user.id %}" class="btn btn-sm btn-warning rounded-pill" title="Cambiar Contraseña">
-                                        <i class="bi bi-asterisk"></i>
-                                    </a>
-                                    <a href="{% url 'eliminar_usuario' user_data.user.id %}" class="btn btn-sm btn-danger rounded-pill" title="Eliminar usuario">
-                                        <i class="bi bi-trash3"></i>
-                                    </a>
-                                </td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            {% else %}
-
-                <div class="alert alert-warning fade show" role="alert">
-                    No existen registros. Este mensaje no debería mostrarse.
-                </div>
-
-            {% endif %}
-
-        </div>
-        <div class="card-footer">
-            <div class="d-flex justify-content-between align-items-start">
-                <div class="card-text"></div>
-                <div class="card-text ">
-                    <a href="{% url url_crear %}" class="btn btn-primary btn-round">
-                        <i class="bi bi-plus-circle-fill"></i> Agregar {{ singular }}</a>
+            </div>
+            <div class="card-footer">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="card-text"></div>
+                    <div class="card-text ">
+                        <a href="#" class="btn btn-outline-success btn-round">
+                            <i class="bi bi-plus-circle-fill"></i> Agregar {{ singular }}</a>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
-  </section>
+    </section>
+
+
+    <section class="section">
+
+        <div class="card">
+            <div class="card-header">
+                <div class="d-flex justify-content-between align-items-start">
+                    <h2 class="card-title">Lista de {{ plural|capfirst }}</h2>
+                    <div class="card-text ">
+                        <a href="{% url url_crear %}" class="btn btn-primary btn-round">
+                            <i class="bi bi-plus-circle-fill"></i> Agregar {{ singular }}</a>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+
+                    {% if messages %}
+                        <ul class="messages">
+                            {% for message in messages %}
+                                <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+                {% if users %}
+
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Nombre de Usuario</th>
+                                <th>Correo</th>
+                                <th>Grupo(s)</th>
+                                <th>Activo</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user_data in users %}
+                                <tr>
+                                    <td>{{ user_data.user.username }}</td>
+                                    <td>{{ user_data.user.email }}</td>
+                                    <td>{{ user_data.groups }}</td>
+                                    <td>{% if user_data.user.is_active %}Sí{% else %}No{% endif %}</td>
+                                    <td>
+                                        <a href="{% url 'modificar_usuario' user_data.user.id %}" class="btn btn-outline-primary rounded-pill" title="Modificar usuario">
+                                            <i class="bi bi-pencil-square"></i> Modificar
+                                        </a>
+                                        <a href="{% url 'cambiar_password_usuario' user_data.user.id %}" class="btn btn-outline-info rounded-pill" title="Cambiar Contraseña">
+                                            <i class="bi bi-asterisk"></i> Cambiar Contraseña
+                                        </a>
+                                        <a href="{% url 'eliminar_usuario' user_data.user.id %}" class="btn btn-outline-danger rounded-pill" title="Eliminar usuario">
+                                            <i class="bi bi-trash3"></i> Eliminar
+                                        </a>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+
+                    <div class="alert alert-warning fade show" role="alert">
+                        No existen registros. Este mensaje no debería mostrarse.
+                    </div>
+
+                {% endif %}
+
+            </div>
+            <div class="card-footer">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="card-text"></div>
+                    <div class="card-text ">
+                        <a href="{% url url_crear %}" class="btn btn-primary btn-round">
+                            <i class="bi bi-plus-circle-fill"></i> Agregar {{ singular }}</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
 
 </main><!-- End #main -->
 

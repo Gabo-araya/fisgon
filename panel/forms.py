@@ -1,7 +1,7 @@
 from django.forms import ModelForm
 from django import forms
 from panel.models import Profile_Model
-from django.contrib.auth.models import User, Group
+from django.contrib.auth.models import User
 
 
 # Define las opciones de grupo

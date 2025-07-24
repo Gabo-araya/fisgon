@@ -43,15 +43,10 @@
             <li class="nav-item dropdown pe-3">
                 <a class="nav-link nav-profile d-flex align-items-center pe-0"
                     href="#" data-bs-toggle="dropdown">
-                    {% if not info_user.image_main.url %}
-                        <img src="{% static 'panel/images/default_avatar_crawler.png' %}"
-                            alt="{{ info_user.user }}" class="rounded-circle" />
-                    {% else %}
-                        <img src="{{ info_user.image_main.url }}"
-                            alt="{{ info_user.user }}" class="rounded-circle" />
-                    {% endif %}
+                    <img src="{% static 'panel/images/default_avatar_crawler.png' %}"
+                        alt="avatar" class="rounded-circle" />
                     <span class="d-none d-md-block dropdown-toggle ps-2">
-                        {{ info_user.user }} [{{ info_user.user.groups.all.0.name }}]
+                        {{ request.user.username }}
                     </span>
                 </a>
 
@@ -59,7 +54,9 @@
 
                 <ul class="dropdown-menu dropdown-menu-end dropdown-menu-arrow profile">
                     <li class="dropdown-header">
-                        <h6>{{ info_user.user }}</h6>
+                        <h6>{{ request.user.username }}</h6>
+                        [{{ request.user.groups.all.0.name }}] <br />
+
                     </li>
 
                     <li> <hr class="dropdown-divider" /> </li>
@@ -80,6 +77,14 @@
                         </a>
                     </li>
                 {% endif %}
+
+                    <li> <hr class="dropdown-divider" /> </li>
+                    <li>
+                        <a class="dropdown-item d-flex align-items-center" href="#">
+                            <i class="bi bi-asterisk"></i>
+                            <span>Cambiar Password</span>
+                        </a>
+                    </li>
 
                     <li> <hr class="dropdown-divider" /> </li>
                     <li>

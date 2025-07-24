@@ -11,7 +11,6 @@ urlpatterns = [
 
     # inclusión de urls de panel
     path('', include('panel.urls')),
-    path('blog/', include('blog.urls')),
 
 ]
 
