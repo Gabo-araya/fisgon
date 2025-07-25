@@ -1,0 +1,90 @@
+<!-- Template parcial para HTMX - Barra de progreso de sesión -->
+<div class="progress mb-3" style="height: 20px;">
+    <div class="progress-bar
+                {% if session.status == 'completed' %}bg-success
+                {% elif session.status == 'failed' %}bg-danger
+                {% elif session.status == 'cancelled' %}bg-secondary
+                {% elif session.status == 'running' %}bg-primary progress-bar-striped progress-bar-animated
+                {% else %}bg-warning{% endif %}"
+         role="progressbar"
+         style="width: {{ progress_data.progress_percentage }}%">
+        {{ progress_data.progress_percentage|floatformat:1 }}%
+    </div>
+</div>
+
+<div class="row text-center">
+    <div class="col-md-3">
+        <div class="d-flex flex-column">
+            <span class="fs-4 fw-bold text-primary">{{ progress_data.total_urls_discovered }}</span>
+            <small class="text-muted">URLs Descubiertas</small>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="d-flex flex-column">
+            <span class="fs-4 fw-bold text-success">{{ progress_data.total_urls_processed }}</span>
+            <small class="text-muted">URLs Procesadas</small>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="d-flex flex-column">
+            <span class="fs-4 fw-bold text-info">{{ progress_data.total_files_found }}</span>
+            <small class="text-muted">Archivos Encontrados</small>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="d-flex flex-column">
+            <span class="fs-4 fw-bold {% if progress_data.total_errors > 0 %}text-danger{% else %}text-muted{% endif %}">
+                {{ progress_data.total_errors }}
+            </span>
+            <small class="text-muted">Errores</small>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-3">
+    <div class="col-12">
+        <h6>Estado de URLs</h6>
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <small class="text-muted">Pendientes</small>
+            <span class="badge bg-warning">{{ url_stats.pending }}</span>
+        </div>
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <small class="text-muted">Procesando</small>
+            <span class="badge bg-primary">{{ url_stats.processing }}</span>
+        </div>
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <small class="text-muted">Completadas</small>
+            <span class="badge bg-success">{{ url_stats.completed }}</span>
+        </div>
+        <div class="d-flex justify-content-between align-items-center mb-2">
+            <small class="text-muted">Fallidas</small>
+            <span class="badge bg-danger">{{ url_stats.failed }}</span>
+        </div>
+        <div class="d-flex justify-content-between align-items-center">
+            <small class="text-muted">Omitidas</small>
+            <span class="badge bg-secondary">{{ url_stats.skipped }}</span>
+        </div>
+    </div>
+</div>
+
+{% if session.status == 'running' %}
+<div class="alert alert-info mt-3">
+    <i class="bi bi-info-circle"></i>
+    <strong>Crawling en progreso...</strong> Esta página se actualiza automáticamente cada 5 segundos.
+</div>
+{% elif session.status == 'completed' %}
+<div class="alert alert-success mt-3">
+    <i class="bi bi-check-circle"></i>
+    <strong>Crawling completado!</strong> Revisa los resultados en la pestaña correspondiente.
+</div>
+{% elif session.status == 'failed' %}
+<div class="alert alert-danger mt-3">
+    <i class="bi bi-exclamation-triangle"></i>
+    <strong>Crawling falló.</strong> Revisa los logs para más detalles.
+</div>
+{% elif session.status == 'cancelled' %}
+<div class="alert alert-warning mt-3">
+    <i class="bi bi-stop-circle"></i>
+    <strong>Crawling cancelado</strong> por el usuario.
+</div>
+{% endif %}

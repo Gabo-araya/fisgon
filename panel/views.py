@@ -42,7 +42,7 @@ def salir(request, *args, **kwargs):
 
 @authenticated_user
 def entrar(request, *args, **kwargs):
-    '''Página de Login de la plataforma. '''
+    '''Página de Login de la plataforma. Redirección de usuarios a Dashboard por tipo de usuario.'''
     # Sacar al usuario que ingresa a esta vista
     # logout(request)
 

@@ -47,6 +47,7 @@ INSTALLED_APPS = [
 
     # Apps
     'panel.apps.PanelConfig',
+    'crawler.apps.CrawlerConfig',
 
 ]
 
@@ -162,3 +163,71 @@ LOGIN_REDIRECT_URL = '/'
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 ACCOUNT_AUTHENTICATION_METHOD = 'email'
 ACCOUNT_EMAIL_REQUIRED = True
+
+
+# Celery Configuration
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = TIME_ZONE
+CELERY_ENABLE_UTC = True
+
+# Crawler Configuration
+CRAWLER_SETTINGS = {
+    'DEFAULT_RATE_LIMIT': 1.0,  # requests per second
+    'MAX_DEPTH': 5,
+    'MAX_PAGES': 1000,
+    'MAX_FILE_SIZE': 50 * 1024 * 1024,  # 50MB
+    'TIMEOUT': 30,
+    'MAX_RETRIES': 3,
+    'USER_AGENT': 'FisgonCrawler/1.0 (+https://github.com/Gabo-araya/fisgon-web-crawler)',
+    'ALLOWED_FILE_TYPES': [
+        'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx',
+        'odt', 'ods', 'odp', 'jpg', 'jpeg', 'png', 'gif',
+        'tiff', 'mp3', 'mp4', 'xml', 'json'
+    ],
+    'RESPECT_ROBOTS_TXT': True,
+    'FOLLOW_REDIRECTS': True,
+    'EXTRACT_METADATA': True,
+}
+
+# Logging configuration
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'file': {
+            'level': 'INFO',
+            'class': 'logging.FileHandler',
+            'filename': BASE_DIR / 'logs' / 'crawler.log',
+            'formatter': 'verbose',
+        },
+        'console': {
+            'level': 'INFO',
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple',
+        },
+    },
+    'loggers': {
+        'crawler': {
+            'handlers': ['file', 'console'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+    },
+}
+
+# Crear directorio de logs si no existe
+os.makedirs(BASE_DIR / 'logs', exist_ok=True)

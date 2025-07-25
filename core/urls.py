@@ -12,6 +12,9 @@ urlpatterns = [
     # inclusión de urls de panel
     path('', include('panel.urls')),
 
+    # inclusión de urls de crawler
+    path('crawler/', include('crawler.urls')),
+
 ]
 
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
