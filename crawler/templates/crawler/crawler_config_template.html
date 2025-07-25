@@ -1,0 +1,797 @@
+{% extends "panel/base_admin.html" %}
+{% load static %}
+{% block title %}Configuración del Crawler{% endblock title %}
+
+{% block stylesheets %}
+<style>
+.config-section {
+    border-radius: 15px;
+    border: none;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    margin-bottom: 20px;
+}
+
+.config-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 15px 15px 0 0;
+}
+
+.setting-item {
+    border-bottom: 1px solid #e9ecef;
+    padding: 15px 0;
+}
+
+.setting-item:last-child {
+    border-bottom: none;
+}
+
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 60px;
+    height: 34px;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    transition: .4s;
+    border-radius: 34px;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 26px;
+    width: 26px;
+    left: 4px;
+    bottom: 4px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+}
+
+input:checked + .slider {
+    background-color: #007bff;
+}
+
+input:checked + .slider:before {
+    transform: translateX(26px);
+}
+
+.advanced-settings {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 20px;
+    margin-top: 15px;
+}
+
+.preset-card {
+    border: 2px solid transparent;
+    border-radius: 10px;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.preset-card:hover {
+    border-color: #007bff;
+    transform: translateY(-2px);
+}
+
+.preset-card.active {
+    border-color: #007bff;
+    background: rgba(0, 123, 255, 0.1);
+}
+
+.file-type-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 10px;
+}
+
+.file-type-item {
+    display: flex;
+    align-items: center;
+    padding: 10px;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.file-type-item:hover {
+    background: #f8f9fa;
+}
+
+.file-type-item input:checked + label {
+    color: #007bff;
+    font-weight: bold;
+}
+
+.danger-zone {
+    background: #fff5f5;
+    border: 1px solid #fed7d7;
+    border-radius: 8px;
+    padding: 20px;
+}
+</style>
+{% endblock stylesheets %}
+
+{% block content %}
+<main id="main" class="main">
+    <div class="pagetitle">
+        <h1><i class="bi bi-gear"></i> Configuración del Crawler</h1>
+        <nav>
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'index' %}">Inicio</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'crawler:dashboard' %}">Crawler</a></li>
+                <li class="breadcrumb-item active">Configuración</li>
+            </ol>
+        </nav>
+    </div>
+
+    <!-- Mensaje de éxito/error -->
+    {% if messages %}
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+    {% endif %}
+
+    <form id="configForm" method="POST">
+        {% csrf_token %}
+
+        <!-- Configuración General -->
+        <section class="section">
+            <div class="card config-section">
+                <div class="card-header config-header">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-sliders"></i> Configuración General
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="setting-item">
+                        <div class="row align-items-center">
+                            <div class="col-md-8">
+                                <h6>Rate Limiting Predeterminado</h6>
+                                <small class="text-muted">Velocidad de crawling por defecto (requests por segundo)</small>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="input-group">
+                                    <input type="range" class="form-range" id="defaultRateLimit"
+                                           name="default_rate_limit" min="0.1" max="10" step="0.1"
+                                           value="{{ config.default_rate_limit|default:'1.0' }}">
+                                    <span class="input-group-text" id="rateLimitValue">{{ config.default_rate_limit|default:'1.0' }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="setting-item">
+                        <div class="row align-items-center">
+                            <div class="col-md-8">
+                                <h6>Profundidad Máxima</h6>
+                                <small class="text-muted">Número máximo de niveles de profundidad por defecto</small>
+                            </div>
+                            <div class="col-md-4">
+                                <select class="form-select" name="max_depth" id="maxDepth">
+                                    <option value="1" {% if config.max_depth == 1 %}selected{% endif %}>1 nivel</option>
+                                    <option value="2" {% if config.max_depth == 2 %}selected{% endif %}>2 niveles</option>
+                                    <option value="3" {% if config.max_depth == 3 %}selected{% endif %}>3 niveles</option>
+                                    <option value="4" {% if config.max_depth == 4 %}selected{% endif %}>4 niveles</option>
+                                    <option value="5" {% if config.max_depth == 5 %}selected{% endif %}>5 niveles</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="setting-item">
+                        <div class="row align-items-center">
+                            <div class="col-md-8">
+                                <h6>Timeout de Requests</h6>
+                                <small class="text-muted">Tiempo máximo de espera para cada request (segundos)</small>
+                            </div>
+                            <div class="col-md-4">
+                                <input type="number" class="form-control" name="timeout"
+                                       value="{{ config.timeout|default:'30' }}" min="5" max="120">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="setting-item">
+                        <div class="row align-items-center">
+                            <div class="col-md-8">
+                                <h6>Máximo de Reintentos</h6>
+                                <small class="text-muted">Número de reintentos en caso de error</small>
+                            </div>
+                            <div class="col-md-4">
+                                <input type="number" class="form-control" name="max_retries"
+                                       value="{{ config.max_retries|default:'3' }}" min="0" max="10">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="setting-item">
+                        <div class="row align-items-center">
+                            <div class="col-md-8">
+                                <h6>Tamaño Máximo de Archivo</h6>
+                                <small class="text-muted">Tamaño máximo a procesar por archivo (MB)</small>
+                            </div>
+                            <div class="col-md-4">
+                                <input type="number" class="form-control" name="max_file_size"
+                                       value="{{ config.max_file_size|default:'50' }}" min="1" max="500">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tipos de Archivo -->
+        <section class="section">
+            <div class="card config-section">
+                <div class="card-header config-header">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-file-earmark"></i> Tipos de Archivo
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-3">Selecciona los tipos de archivo que deseas procesar por defecto</p>
+
+                    <div class="file-type-grid">
+                        <div class="file-type-item">
+                            <input type="checkbox" class="form-check-input me-2" id="type_pdf"
+                                   name="file_types" value="pdf"
+                                   {% if 'pdf' in config.file_types %}checked{% endif %}>
+                            <label class="form-check-label" for="type_pdf">
+                                <i class="bi bi-file-pdf text-danger"></i> PDF
+                            </label>
+                        </div>
+
+                        <div class="file-type-item">
+                            <input type="checkbox" class="form-check-input me-2" id="type_doc"
+                                   name="file_types" value="doc"
+                                   {% if 'doc' in config.file_types %}checked{% endif %}>
+                            <label class="form-check-label" for="type_doc">
+                                <i class="bi bi-file-word text-primary"></i> DOC/DOCX
+                            </label>
+                        </div>
+
+                        <div class="file-type-item">
+                            <input type="checkbox" class="form-check-input me-2" id="type_xls"
+                                   name="file_types" value="xls"
+                                   {% if 'xls' in config.file_types %}checked{% endif %}>
+                            <label class="form-check-label" for="type_xls">
+                                <i class="bi bi-file-excel text-success"></i> XLS/XLSX
+                            </label>
+                        </div>
+
+                        <div class="file-type-item">
+                            <input type="checkbox" class="form-check-input me-2" id="type_ppt"
+                                   name="file_types" value="ppt"
+                                   {% if 'ppt' in config.file_types %}checked{% endif %}>
+                            <label class="form-check-label" for="type_ppt">
+                                <i class="bi bi-file-ppt text-warning"></i> PPT/PPTX
+                            </label>
+                        </div>
+
+                        <div class="file-type-item">
+                            <input type="checkbox" class="form-check-input me-2" id="type_images"
+                                   name="file_types" value="images"
+                                   {% if 'images' in config.file_types %}checked{% endif %}>
+                            <label class="form-check-label" for="type_images">
+                                <i class="bi bi-image text-info"></i> Imágenes
+                            </label>
+                        </div>
+
+                        <div class="file-type-item">
+                            <input type="checkbox" class="form-check-input me-2" id="type_audio"
+                                   name="file_types" value="audio"
+                                   {% if 'audio' in config.file_types %}checked{% endif %}>
+                            <label class="form-check-label" for="type_audio">
+                                <i class="bi bi-file-music text-secondary"></i> Audio
+                            </label>
+                        </div>
+
+                        <div class="file-type-item">
+                            <input type="checkbox" class="form-check-input me-2" id="type_video"
+                                   name="file_types" value="video"
+                                   {% if 'video' in config.file_types %}checked{% endif %}>
+                            <label class="form-check-label" for="type_video">
+                                <i class="bi bi-camera-video text-dark"></i> Video
+                            </label>
+                        </div>
+
+                        <div class="file-type-item">
+                            <input type="checkbox" class="form-check-input me-2" id="type_archives"
+                                   name="file_types" value="archives"
+                                   {% if 'archives' in config.file_types %}checked{% endif %}>
+                            <label class="form-check-label" for="type_archives">
+                                <i class="bi bi-file-zip text-secondary"></i> Archivos
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Configuración de Robots.txt -->
+        <section class="section">
+            <div class="card config-section">
+                <div class="card-header config-header">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-robot"></i> Respeto a Robots.txt
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="setting-item">
+                        <div class="row align-items-center">
+                            <div class="col-md-8">
+                                <h6>Respetar Robots.txt</h6>
+                                <small class="text-muted">Seguir las directrices del archivo robots.txt del sitio</small>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="switch">
+                                    <input type="checkbox" name="respect_robots_txt"
+                                           {% if config.respect_robots_txt %}checked{% endif %}>
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="setting-item">
+                        <div class="row align-items-center">
+                            <div class="col-md-8">
+                                <h6>User-Agent Personalizado</h6>
+                                <small class="text-muted">User-Agent a utilizar en las requests</small>
+                            </div>
+                            <div class="col-md-4">
+                                <input type="text" class="form-control" name="user_agent"
+                                       value="{{ config.user_agent|default:'FisgonCrawler/1.0' }}"
+                                       placeholder="FisgonCrawler/1.0">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="setting-item">
+                        <div class="row align-items-center">
+                            <div class="col-md-8">
+                                <h6>Seguir Redirects</h6>
+                                <small class="text-muted">Seguir automáticamente las redirecciones HTTP</small>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="switch">
+                                    <input type="checkbox" name="follow_redirects"
+                                           {% if config.follow_redirects %}checked{% endif %}>
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Configuración de Análisis -->
+        <section class="section">
+            <div class="card config-section">
+                <div class="card-header config-header">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-search"></i> Análisis de Metadatos
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="setting-item">
+                        <div class="row align-items-center">
+                            <div class="col-md-8">
+                                <h6>Extracción de Metadatos</h6>
+                                <small class="text-muted">Extraer metadatos automáticamente de los archivos</small>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="switch">
+                                    <input type="checkbox" name="extract_metadata"
+                                           {% if config.extract_metadata %}checked{% endif %}>
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="setting-item">
+                        <div class="row align-items-center">
+                            <div class="col-md-8">
+                                <h6>Detección de Patrones</h6>
+                                <small class="text-muted">Detectar automáticamente patrones de riesgo</small>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="switch">
+                                    <input type="checkbox" name="pattern_detection"
+                                           {% if config.pattern_detection %}checked{% endif %}>
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="setting-item">
+                        <div class="row align-items-center">
+                            <div class="col-md-8">
+                                <h6>Umbral de Riesgo</h6>
+                                <small class="text-muted">Umbral mínimo para reportar patrones de riesgo (1-10)</small>
+                            </div>
+                            <div class="col-md-4">
+                                <input type="range" class="form-range" name="risk_threshold"
+                                       min="1" max="10" step="1"
+                                       value="{{ config.risk_threshold|default:'5' }}"
+                                       id="riskThreshold">
+                                <small class="text-muted">Valor: <span id="riskThresholdValue">{{ config.risk_threshold|default:'5' }}</span></small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Configuración Avanzada -->
+        <section class="section">
+            <div class="card config-section">
+                <div class="card-header config-header">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-gear-wide-connected"></i> Configuración Avanzada
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="setting-item">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6>Patrones de Exclusión</h6>
+                                <small class="text-muted">URLs o patrones a excluir (uno por línea)</small>
+                                <textarea class="form-control mt-2" name="exclude_patterns" rows="4"
+                                          placeholder="/admin/&#10;/private/&#10;*.tmp&#10;*.log">{{ config.exclude_patterns|default:'' }}</textarea>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>Dominios Permitidos</h6>
+                                <small class="text-muted">Dominios adicionales permitidos (uno por línea)</small>
+                                <textarea class="form-control mt-2" name="allowed_domains" rows="4"
+                                          placeholder="subdomain.example.com&#10;cdn.example.com">{{ config.allowed_domains|default:'' }}</textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="setting-item">
+                        <div class="row align-items-center">
+                            <div class="col-md-8">
+                                <h6>Modo Debug</h6>
+                                <small class="text-muted">Habilitar logging detallado para desarrollo</small>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="switch">
+                                    <input type="checkbox" name="debug_mode"
+                                           {% if config.debug_mode %}checked{% endif %}>
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="setting-item">
+                        <div class="row align-items-center">
+                            <div class="col-md-8">
+                                <h6>Paralelización</h6>
+                                <small class="text-muted">Número de workers paralelos para procesamiento</small>
+                            </div>
+                            <div class="col-md-4">
+                                <input type="number" class="form-control" name="worker_count"
+                                       value="{{ config.worker_count|default:'4' }}" min="1" max="20">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Presets de Configuración -->
+        <section class="section">
+            <div class="card config-section">
+                <div class="card-header config-header">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-collection"></i> Presets de Configuración
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-3">Usa configuraciones predefinidas para diferentes escenarios</p>
+
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="card preset-card" data-preset="conservative">
+                                <div class="card-body text-center">
+                                    <i class="bi bi-shield-check display-4 text-success mb-3"></i>
+                                    <h6>Conservador</h6>
+                                    <small class="text-muted">Velocidad baja, máximo respeto a robots.txt</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-4">
+                            <div class="card preset-card" data-preset="balanced">
+                                <div class="card-body text-center">
+                                    <i class="bi bi-speedometer2 display-4 text-primary mb-3"></i>
+                                    <h6>Balanceado</h6>
+                                    <small class="text-muted">Configuración equilibrada para uso general</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-4">
+                            <div class="card preset-card" data-preset="aggressive">
+                                <div class="card-body text-center">
+                                    <i class="bi bi-lightning display-4 text-warning mb-3"></i>
+                                    <h6>Agresivo</h6>
+                                    <small class="text-muted">Velocidad alta, análisis exhaustivo</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Zona de Peligro -->
+        <section class="section">
+            <div class="danger-zone">
+                <h6 class="text-danger"><i class="bi bi-exclamation-triangle"></i> Zona de Peligro</h6>
+                <p class="text-muted mb-3">Estas acciones son irreversibles y pueden afectar el funcionamiento del sistema</p>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <button type="button" class="btn btn-outline-danger" onclick="resetToDefaults()">
+                            <i class="bi bi-arrow-clockwise"></i> Restaurar Valores por Defecto
+                        </button>
+                    </div>
+                    <div class="col-md-6">
+                        <button type="button" class="btn btn-outline-danger" onclick="clearAllSessions()">
+                            <i class="bi bi-trash"></i> Eliminar Todas las Sesiones
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Botones de Acción -->
+        <section class="section">
+            <div class="row">
+                <div class="col-12 text-center">
+                    <button type="button" class="btn btn-outline-secondary me-2" onclick="history.back()">
+                        <i class="bi bi-arrow-left"></i> Cancelar
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check-lg"></i> Guardar Configuración
+                    </button>
+                </div>
+            </div>
+        </section>
+    </form>
+</main>
+
+<!-- Modal de confirmación para reset -->
+<div class="modal fade" id="resetModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirmar Reset</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>¿Estás seguro de que quieres restaurar todos los valores a su configuración por defecto?</p>
+                <p class="text-danger"><strong>Esta acción no se puede deshacer.</strong></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-danger" onclick="confirmReset()">Restaurar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}
+
+{% block javascripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Actualizar valores de sliders en tiempo real
+    setupSliders();
+
+    // Configurar presets
+    setupPresets();
+
+    // Validación del formulario
+    setupFormValidation();
+});
+
+function setupSliders() {
+    // Rate limit slider
+    const rateLimitSlider = document.getElementById('defaultRateLimit');
+    const rateLimitValue = document.getElementById('rateLimitValue');
+
+    rateLimitSlider.addEventListener('input', function() {
+        rateLimitValue.textContent = this.value;
+    });
+
+    // Risk threshold slider
+    const riskThresholdSlider = document.getElementById('riskThreshold');
+    const riskThresholdValue = document.getElementById('riskThresholdValue');
+
+    riskThresholdSlider.addEventListener('input', function() {
+        riskThresholdValue.textContent = this.value;
+    });
+}
+
+function setupPresets() {
+    const presetCards = document.querySelectorAll('.preset-card');
+
+    presetCards.forEach(card => {
+        card.addEventListener('click', function() {
+            const preset = this.dataset.preset;
+
+            // Remover active de todos
+            presetCards.forEach(c => c.classList.remove('active'));
+
+            // Activar el seleccionado
+            this.classList.add('active');
+
+            // Aplicar configuración
+            applyPreset(preset);
+        });
+    });
+}
+
+function applyPreset(preset) {
+    const presets = {
+        conservative: {
+            default_rate_limit: 0.5,
+            max_depth: 2,
+            timeout: 45,
+            max_retries: 2,
+            respect_robots_txt: true,
+            extract_metadata: true,
+            pattern_detection: true,
+            debug_mode: false
+        },
+        balanced: {
+            default_rate_limit: 1.0,
+            max_depth: 3,
+            timeout: 30,
+            max_retries: 3,
+            respect_robots_txt: true,
+            extract_metadata: true,
+            pattern_detection: true,
+            debug_mode: false
+        },
+        aggressive: {
+            default_rate_limit: 2.0,
+            max_depth: 4,
+            timeout: 20,
+            max_retries: 5,
+            respect_robots_txt: false,
+            extract_metadata: true,
+            pattern_detection: true,
+            debug_mode: true
+        }
+    };
+
+    const config = presets[preset];
+
+    // Aplicar valores
+    document.getElementById('defaultRateLimit').value = config.default_rate_limit;
+    document.getElementById('rateLimitValue').textContent = config.default_rate_limit;
+    document.getElementById('maxDepth').value = config.max_depth;
+    document.querySelector('[name="timeout"]').value = config.timeout;
+    document.querySelector('[name="max_retries"]').value = config.max_retries;
+    document.querySelector('[name="respect_robots_txt"]').checked = config.respect_robots_txt;
+    document.querySelector('[name="extract_metadata"]').checked = config.extract_metadata;
+    document.querySelector('[name="pattern_detection"]').checked = config.pattern_detection;
+    document.querySelector('[name="debug_mode"]').checked = config.debug_mode;
+}
+
+function setupFormValidation() {
+    const form = document.getElementById('configForm');
+
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        // Validaciones básicas
+        const rateLimit = parseFloat(document.getElementById('defaultRateLimit').value);
+        const timeout = parseInt(document.querySelector('[name="timeout"]').value);
+        const maxRetries = parseInt(document.querySelector('[name="max_retries"]').value);
+
+        if (rateLimit < 0.1 || rateLimit > 10) {
+            alert('El rate limit debe estar entre 0.1 y 10 requests por segundo');
+            return;
+        }
+
+        if (timeout < 5 || timeout > 120) {
+            alert('El timeout debe estar entre 5 y 120 segundos');
+            return;
+        }
+
+        if (maxRetries < 0 || maxRetries > 10) {
+            alert('Los reintentos deben estar entre 0 y 10');
+            return;
+        }
+
+        // Si todo es válido, enviar formulario
+        this.submit();
+    });
+}
+
+function resetToDefaults() {
+    const modal = new bootstrap.Modal(document.getElementById('resetModal'));
+    modal.show();
+}
+
+function confirmReset() {
+    fetch('{% url "crawler:config" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: JSON.stringify({
+            action: 'reset_defaults'
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error al restaurar configuración: ' + data.error);
+        }
+    })
+    .catch(error => {
+        alert('Error de conexión: ' + error.message);
+    });
+
+    bootstrap.Modal.getInstance(document.getElementById('resetModal')).hide();
+}
+
+function clearAllSessions() {
+    if (confirm('¿Estás seguro de que quieres eliminar TODAS las sesiones de crawling? Esta acción es irreversible.')) {
+        fetch('{% url "crawler:config" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: JSON.stringify({
+                action: 'clear_sessions'
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Todas las sesiones han sido eliminadas');
+            } else {
+                alert('Error al eliminar sesiones: ' + data.error);
+            }
+        })
+        .catch(error => {
+            alert('Error de conexión: ' + error.message);
+        });
+    }
+}
+</script>
+{% endblock javascripts %}

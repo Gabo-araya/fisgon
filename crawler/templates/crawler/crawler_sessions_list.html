@@ -1,0 +1,645 @@
+{% extends "panel/base_admin.html" %}
+{% load static %}
+{% block title %}Sesiones de Crawling{% endblock title %}
+
+{% block stylesheets %}
+<style>
+.session-card {
+    border-left: 4px solid;
+    transition: all 0.3s ease;
+}
+.session-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+.session-completed { border-left-color: #28a745; }
+.session-running { border-left-color: #007bff; }
+.session-paused { border-left-color: #ffc107; }
+.session-failed { border-left-color: #dc3545; }
+.session-stopped { border-left-color: #6c757d; }
+
+.progress-mini {
+    height: 4px;
+    border-radius: 2px;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 15px;
+}
+
+.stat-item {
+    text-align: center;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.filter-buttons .btn {
+    margin-right: 5px;
+    margin-bottom: 5px;
+}
+</style>
+{% endblock stylesheets %}
+
+{% block content %}
+<main id="main" class="main">
+    <div class="pagetitle">
+        <h1><i class="bi bi-list-task"></i> Sesiones de Crawling</h1>
+        <nav>
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'index' %}">Inicio</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'crawler:dashboard' %}">Crawler</a></li>
+                <li class="breadcrumb-item active">Sesiones</li>
+            </ol>
+        </nav>
+    </div>
+
+    <!-- Filtros y estadísticas -->
+    <section class="section">
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <i class="bi bi-funnel"></i> Filtros
+                        </h5>
+                        <div class="filter-buttons">
+                            <button class="btn btn-outline-primary active" data-filter="all">
+                                Todas ({{ sessions.count }})
+                            </button>
+                            <button class="btn btn-outline-success" data-filter="completed">
+                                Completadas ({{ completed_count }})
+                            </button>
+                            <button class="btn btn-outline-primary" data-filter="running">
+                                En ejecución ({{ running_count }})
+                            </button>
+                            <button class="btn btn-outline-warning" data-filter="paused">
+                                Pausadas ({{ paused_count }})
+                            </button>
+                            <button class="btn btn-outline-danger" data-filter="failed">
+                                Fallidas ({{ failed_count }})
+                            </button>
+                        </div>
+
+                        <div class="row mt-3">
+                            <div class="col-md-6">
+                                <input type="text" class="form-control" id="domainSearch"
+                                       placeholder="Buscar por dominio...">
+                            </div>
+                            <div class="col-md-6">
+                                <select class="form-select" id="dateFilter">
+                                    <option value="">Todas las fechas</option>
+                                    <option value="today">Hoy</option>
+                                    <option value="week">Esta semana</option>
+                                    <option value="month">Este mes</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">
+                            <i class="bi bi-plus-circle"></i> Nueva Sesión
+                        </h5>
+                        <p class="text-muted">Iniciar un nuevo crawling</p>
+                        <a href="{% url 'crawler:dashboard' %}" class="btn btn-primary">
+                            <i class="bi bi-rocket"></i> Crear Sesión
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Lista de sesiones -->
+    <section class="section">
+        <div class="row" id="sessionsContainer">
+            {% for session in sessions %}
+            <div class="col-lg-6 session-item"
+                 data-status="{{ session.status }}"
+                 data-domain="{{ session.target_domain|lower }}"
+                 data-date="{{ session.started_at|date:'Y-m-d' }}">
+                <div class="card session-card session-{{ session.status }} mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center py-2">
+                        <div>
+                            <h6 class="mb-0">
+                                <i class="bi bi-globe"></i>
+                                {{ session.target_domain }}
+                            </h6>
+                            <small class="text-muted">
+                                ID: {{ session.id }} |
+                                Iniciado: {{ session.started_at|date:"d/m/Y H:i" }}
+                            </small>
+                        </div>
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-outline-secondary" type="button"
+                                    data-bs-toggle="dropdown">
+                                <i class="bi bi-three-dots-vertical"></i>
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li>
+                                    <a class="dropdown-item" href="{% url 'crawler:session_detail' session.id %}">
+                                        <i class="bi bi-eye"></i> Ver detalles
+                                    </a>
+                                </li>
+                                {% if session.status == 'running' %}
+                                <li>
+                                    <a class="dropdown-item" href="#" onclick="pauseSession({{ session.id }})">
+                                        <i class="bi bi-pause"></i> Pausar
+                                    </a>
+                                </li>
+                                <li>
+                                    <a class="dropdown-item text-danger" href="#" onclick="stopSession({{ session.id }})">
+                                        <i class="bi bi-stop"></i> Detener
+                                    </a>
+                                </li>
+                                {% elif session.status == 'paused' %}
+                                <li>
+                                    <a class="dropdown-item" href="#" onclick="resumeSession({{ session.id }})">
+                                        <i class="bi bi-play"></i> Reanudar
+                                    </a>
+                                </li>
+                                {% endif %}
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <a class="dropdown-item" href="{% url 'crawler:export_session' session.id %}">
+                                        <i class="bi bi-download"></i> Exportar
+                                    </a>
+                                </li>
+                                {% if session.status in 'completed,failed,stopped' %}
+                                <li>
+                                    <a class="dropdown-item text-danger" href="#" onclick="deleteSession({{ session.id }})">
+                                        <i class="bi bi-trash"></i> Eliminar
+                                    </a>
+                                </li>
+                                {% endif %}
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="card-body">
+                        <!-- Estado y progreso -->
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <span class="badge {% if session.status == 'completed' %}bg-success{% elif session.status == 'running' %}bg-primary{% elif session.status == 'paused' %}bg-warning{% elif session.status == 'failed' %}bg-danger{% else %}bg-secondary{% endif %}">
+                                {{ session.get_status_display }}
+                            </span>
+                            <div class="text-end">
+                                <small class="text-muted">
+                                    {% if session.completed_at %}
+                                        Finalizado: {{ session.completed_at|date:"d/m H:i" }}
+                                    {% elif session.status == 'running' %}
+                                        <i class="bi bi-clock"></i> En progreso...
+                                    {% endif %}
+                                </small>
+                            </div>
+                        </div>
+
+                        <!-- Progreso -->
+                        {% if session.status == 'running' and session.progress_percentage %}
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between">
+                                <small class="text-muted">Progreso</small>
+                                <small class="text-muted">{{ session.progress_percentage }}%</small>
+                            </div>
+                            <div class="progress progress-mini">
+                                <div class="progress-bar" role="progressbar"
+                                     style="width: {{ session.progress_percentage }}%"></div>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Estadísticas de la sesión -->
+                        <div class="stats-grid">
+                            <div class="stat-item">
+                                <div class="h6 mb-0">{{ session.discovered_urls.count }}</div>
+                                <small class="text-muted">URLs</small>
+                            </div>
+                            <div class="stat-item">
+                                <div class="h6 mb-0">{{ session.processed_files_count }}</div>
+                                <small class="text-muted">Procesados</small>
+                            </div>
+                            <div class="stat-item">
+                                <div class="h6 mb-0">{{ session.patterns_count }}</div>
+                                <small class="text-muted">Patrones</small>
+                            </div>
+                            <div class="stat-item">
+                                <div class="h6 mb-0">{{ session.max_depth }}</div>
+                                <small class="text-muted">Profundidad</small>
+                            </div>
+                        </div>
+
+                        <!-- Configuración resumida -->
+                        <div class="mt-3 pt-3 border-top">
+                            <div class="d-flex flex-wrap gap-1">
+                                {% for file_type in session.config.file_types %}
+                                <span class="badge bg-light text-dark">{{ file_type }}</span>
+                                {% endfor %}
+                                <span class="badge bg-light text-dark">
+                                    {{ session.config.rate_limit|default:"1" }} req/s
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Errores si los hay -->
+                        {% if session.error_message %}
+                        <div class="mt-3">
+                            <div class="alert alert-danger alert-sm py-2">
+                                <i class="bi bi-exclamation-triangle"></i>
+                                <small>{{ session.error_message|truncatechars:100 }}</small>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="card-footer py-2">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">
+                                {% if session.duration %}
+                                    Duración: {{ session.duration }}
+                                {% elif session.status == 'running' %}
+                                    <span class="text-primary">
+                                        <i class="bi bi-clock"></i> Ejecutándose...
+                                    </span>
+                                {% endif %}
+                            </small>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{% url 'crawler:session_detail' session.id %}"
+                                   class="btn btn-outline-primary" title="Ver detalles">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                {% if session.status == 'completed' %}
+                                <a href="{% url 'crawler:session_report' session.id %}"
+                                   class="btn btn-outline-success" title="Ver reporte">
+                                    <i class="bi bi-file-text"></i>
+                                </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body text-center py-5">
+                        <i class="bi bi-inbox display-1 text-muted"></i>
+                        <h4 class="mt-3 text-muted">No hay sesiones de crawling</h4>
+                        <p class="text-muted">Inicia tu primera sesión de crawling para comenzar a extraer metadatos</p>
+                        <a href="{% url 'crawler:dashboard' %}" class="btn btn-primary">
+                            <i class="bi bi-rocket"></i> Crear Primera Sesión
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Paginación -->
+        {% if is_paginated %}
+        <div class="row mt-4">
+            <div class="col-12">
+                <nav aria-label="Navegación de sesiones">
+                    <ul class="pagination justify-content-center">
+                        {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page=1">Primera</a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Anterior</a>
+                        </li>
+                        {% endif %}
+
+                        {% for num in page_obj.paginator.page_range %}
+                        {% if page_obj.number == num %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ num }}</span>
+                        </li>
+                        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                        </li>
+                        {% endif %}
+                        {% endfor %}
+
+                        {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}">Siguiente</a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">Última</a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            </div>
+        </div>
+        {% endif %}
+    </section>
+</main>
+
+<!-- Modal de confirmación para eliminar sesión -->
+<div class="modal fade" id="deleteSessionModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirmar Eliminación</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>¿Estás seguro de que quieres eliminar esta sesión de crawling?</p>
+                <p class="text-danger"><strong>Esta acción no se puede deshacer.</strong></p>
+                <p>Se eliminarán:</p>
+                <ul>
+                    <li>Todos los metadatos extraídos</li>
+                    <li>URLs descubiertas</li>
+                    <li>Patrones detectados</li>
+                    <li>Logs de la sesión</li>
+                </ul>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Eliminar Sesión</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}
+
+{% block javascripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Variables globales
+    let currentFilter = 'all';
+    let sessionToDelete = null;
+
+    // Elementos del DOM
+    const filterButtons = document.querySelectorAll('[data-filter]');
+    const domainSearch = document.getElementById('domainSearch');
+    const dateFilter = document.getElementById('dateFilter');
+    const sessionsContainer = document.getElementById('sessionsContainer');
+
+    // Configurar filtros
+    filterButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            // Actualizar botones activos
+            filterButtons.forEach(btn => btn.classList.remove('active'));
+            this.classList.add('active');
+
+            currentFilter = this.dataset.filter;
+            applyFilters();
+        });
+    });
+
+    // Configurar búsqueda por dominio
+    domainSearch.addEventListener('input', function() {
+        applyFilters();
+    });
+
+    // Configurar filtro de fecha
+    dateFilter.addEventListener('change', function() {
+        applyFilters();
+    });
+
+    // Función principal de filtrado
+    function applyFilters() {
+        const searchTerm = domainSearch.value.toLowerCase();
+        const dateFilterValue = dateFilter.value;
+        const sessions = document.querySelectorAll('.session-item');
+
+        sessions.forEach(session => {
+            const status = session.dataset.status;
+            const domain = session.dataset.domain;
+            const sessionDate = new Date(session.dataset.date);
+
+            let showSession = true;
+
+            // Filtro por estado
+            if (currentFilter !== 'all' && status !== currentFilter) {
+                showSession = false;
+            }
+
+            // Filtro por dominio
+            if (searchTerm && !domain.includes(searchTerm)) {
+                showSession = false;
+            }
+
+            // Filtro por fecha
+            if (dateFilterValue && !isDateInRange(sessionDate, dateFilterValue)) {
+                showSession = false;
+            }
+
+            // Mostrar/ocultar sesión
+            session.style.display = showSession ? 'block' : 'none';
+        });
+
+        // Mostrar mensaje si no hay resultados
+        const visibleSessions = Array.from(sessions).filter(s => s.style.display !== 'none');
+        updateNoResultsMessage(visibleSessions.length === 0);
+    }
+
+    // Verificar si una fecha está en el rango especificado
+    function isDateInRange(date, range) {
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+        switch(range) {
+            case 'today':
+                return date >= today;
+            case 'week':
+                const weekAgo = new Date(today);
+                weekAgo.setDate(weekAgo.getDate() - 7);
+                return date >= weekAgo;
+            case 'month':
+                const monthAgo = new Date(today);
+                monthAgo.setMonth(monthAgo.getMonth() - 1);
+                return date >= monthAgo;
+            default:
+                return true;
+        }
+    }
+
+    // Mostrar/ocultar mensaje de no resultados
+    function updateNoResultsMessage(show) {
+        let noResultsMsg = document.getElementById('noResultsMessage');
+
+        if (show && !noResultsMsg) {
+            noResultsMsg = document.createElement('div');
+            noResultsMsg.id = 'noResultsMessage';
+            noResultsMsg.className = 'col-12';
+            noResultsMsg.innerHTML = `
+                <div class="card">
+                    <div class="card-body text-center py-4">
+                        <i class="bi bi-search display-1 text-muted"></i>
+                        <h5 class="mt-3 text-muted">No se encontraron sesiones</h5>
+                        <p class="text-muted">Intenta ajustar los filtros de búsqueda</p>
+                        <button class="btn btn-outline-primary" onclick="clearFilters()">
+                            <i class="bi bi-x-circle"></i> Limpiar Filtros
+                        </button>
+                    </div>
+                </div>
+            `;
+            sessionsContainer.appendChild(noResultsMsg);
+        } else if (!show && noResultsMsg) {
+            noResultsMsg.remove();
+        }
+    }
+
+    // Limpiar todos los filtros
+    window.clearFilters = function() {
+        filterButtons.forEach(btn => btn.classList.remove('active'));
+        filterButtons[0].classList.add('active'); // Activar "Todas"
+        domainSearch.value = '';
+        dateFilter.value = '';
+        currentFilter = 'all';
+        applyFilters();
+    };
+
+    // Actualizar estadísticas en tiempo real cada 30 segundos
+    setInterval(updateRunningSessionsStats, 30000);
+
+    function updateRunningSessionsStats() {
+        const runningSessions = document.querySelectorAll('[data-status="running"]');
+
+        runningSessions.forEach(session => {
+            const sessionId = session.querySelector('[href*="session_detail"]').href.split('/').pop();
+            fetchSessionStats(sessionId);
+        });
+    }
+
+    async function fetchSessionStats(sessionId) {
+        try {
+            const response = await fetch(`/crawler/sessions/${sessionId}/stats/`);
+            const stats = await response.json();
+
+            if (stats.success) {
+                updateSessionDisplay(sessionId, stats.data);
+            }
+        } catch (error) {
+            console.error('Error fetching session stats:', error);
+        }
+    }
+
+    function updateSessionDisplay(sessionId, stats) {
+        const sessionCard = document.querySelector(`[href*="${sessionId}"]`).closest('.session-item');
+
+        if (sessionCard) {
+            // Actualizar contadores
+            const statsGrid = sessionCard.querySelector('.stats-grid');
+            if (statsGrid) {
+                const statItems = statsGrid.querySelectorAll('.stat-item .h6');
+                if (statItems[0]) statItems[0].textContent = stats.discovered_urls;
+                if (statItems[1]) statItems[1].textContent = stats.processed_files;
+                if (statItems[2]) statItems[2].textContent = stats.patterns_detected;
+            }
+
+            // Actualizar barra de progreso
+            const progressBar = sessionCard.querySelector('.progress-bar');
+            if (progressBar && stats.progress_percentage) {
+                progressBar.style.width = `${stats.progress_percentage}%`;
+                sessionCard.querySelector('.progress').previousElementSibling.lastElementChild.textContent = `${stats.progress_percentage}%`;
+            }
+        }
+    }
+});
+
+// Funciones globales para control de sesiones
+async function pauseSession(sessionId) {
+    try {
+        const response = await fetch(`/crawler/sessions/${sessionId}/pause/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        });
+
+        if (response.ok) {
+            location.reload();
+        } else {
+            alert('Error al pausar la sesión');
+        }
+    } catch (error) {
+        console.error('Error pausando sesión:', error);
+        alert('Error de conexión');
+    }
+}
+
+async function resumeSession(sessionId) {
+    try {
+        const response = await fetch(`/crawler/sessions/${sessionId}/resume/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        });
+
+        if (response.ok) {
+            location.reload();
+        } else {
+            alert('Error al reanudar la sesión');
+        }
+    } catch (error) {
+        console.error('Error reanudando sesión:', error);
+        alert('Error de conexión');
+    }
+}
+
+async function stopSession(sessionId) {
+    if (confirm('¿Estás seguro de que quieres detener esta sesión? Esta acción no se puede deshacer.')) {
+        try {
+            const response = await fetch(`/crawler/sessions/${sessionId}/stop/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                }
+            });
+
+            if (response.ok) {
+                location.reload();
+            } else {
+                alert('Error al detener la sesión');
+            }
+        } catch (error) {
+            console.error('Error deteniendo sesión:', error);
+            alert('Error de conexión');
+        }
+    }
+}
+
+function deleteSession(sessionId) {
+    sessionToDelete = sessionId;
+    const modal = new bootstrap.Modal(document.getElementById('deleteSessionModal'));
+    modal.show();
+}
+
+document.getElementById('confirmDeleteBtn').addEventListener('click', async function() {
+    if (!sessionToDelete) return;
+
+    try {
+        const response = await fetch(`/crawler/sessions/${sessionToDelete}/delete/`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        });
+
+        if (response.ok) {
+            location.reload();
+        } else {
+            alert('Error al eliminar la sesión');
+        }
+    } catch (error) {
+        console.error('Error eliminando sesión:', error);
+        alert('Error de conexión');
+    }
+
+    sessionToDelete = null;
+    bootstrap.Modal.getInstance(document.getElementById('deleteSessionModal')).hide();
+});
+</script>
+{% endblock javascripts %}

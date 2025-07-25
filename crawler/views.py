@@ -51,7 +51,7 @@ def crawler_dashboard(request):
         'active_sessions': active_sessions,
     }
 
-    return render(request, 'crawler/dashboard.html', context)
+    return render(request, 'crawler/dashboard_crawler.html', context)
 
 
 @login_required(login_url='entrar')
