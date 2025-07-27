@@ -23,7 +23,7 @@ logger = logging.getLogger('crawler')
 
 @shared_task(bind=True)
 def start_crawl_session(self, session_id: int):
-    """Tarea principal que inicia una sesión de crawling"""
+    '''Tarea principal que inicia una sesión de crawling'''
     try:
         session = CrawlSession.objects.get(id=session_id)
         session.status = 'running'
@@ -77,7 +77,7 @@ def start_crawl_session(self, session_id: int):
 
 @shared_task(bind=True)
 def process_robots_txt(self, session_id: int):
-    """Procesa el archivo robots.txt del dominio objetivo"""
+    '''Procesa el archivo robots.txt del dominio objetivo'''
     try:
         session = CrawlSession.objects.get(id=session_id)
         robots_url = f"https://{session.target_domain}/robots.txt"
@@ -109,7 +109,7 @@ def process_robots_txt(self, session_id: int):
 
 @shared_task(bind=True)
 def process_url_queue(self, session_id: int):
-    """Procesa la cola de URLs de una sesión"""
+    '''Procesa la cola de URLs de una sesión'''
     try:
         session = CrawlSession.objects.get(id=session_id)
 
@@ -168,7 +168,7 @@ def process_url_queue(self, session_id: int):
 
 @shared_task(bind=True)
 def process_single_url(self, session_id: int, url_queue_id: int):
-    """Procesa una URL individual"""
+    '''Procesa una URL individual'''
     try:
         session = CrawlSession.objects.get(id=session_id)
         url_item = URLQueue.objects.get(id=url_queue_id)
@@ -288,7 +288,7 @@ def process_single_url(self, session_id: int, url_queue_id: int):
 
 @shared_task(bind=True)
 def extract_urls_from_html(self, session_id: int, url_queue_id: int, html_content: str):
-    """Extrae URLs de contenido HTML"""
+    '''Extrae URLs de contenido HTML'''
     try:
         session = CrawlSession.objects.get(id=session_id)
         parent_url_item = URLQueue.objects.get(id=url_queue_id)
@@ -376,7 +376,7 @@ def extract_urls_from_html(self, session_id: int, url_queue_id: int, html_conten
 
 @shared_task(bind=True)
 def save_and_extract_metadata(self, session_id: int, url_queue_id: int, content: bytes):
-    """Guarda archivo y extrae metadatos"""
+    '''Guarda archivo y extrae metadatos'''
     try:
         session = CrawlSession.objects.get(id=session_id)
         url_item = URLQueue.objects.get(id=url_queue_id)
@@ -424,7 +424,7 @@ def save_and_extract_metadata(self, session_id: int, url_queue_id: int, content:
 
 @shared_task(bind=True)
 def extract_file_metadata(self, result_id: int):
-    """Extrae metadatos de un archivo guardado"""
+    '''Extrae metadatos de un archivo guardado'''
     try:
         result = CrawlResult.objects.get(id=result_id)
 
@@ -455,7 +455,7 @@ def extract_file_metadata(self, result_id: int):
 
 @shared_task(bind=True)
 def complete_crawl_session(self, session_id: int):
-    """Completa una sesión de crawling"""
+    '''Completa una sesión de crawling'''
     try:
         session = CrawlSession.objects.get(id=session_id)
         session.status = 'completed'
@@ -483,7 +483,7 @@ def complete_crawl_session(self, session_id: int):
 
 @shared_task(bind=True)
 def stop_crawl_session(self, session_id: int):
-    """Detiene una sesión de crawling"""
+    '''Detiene una sesión de crawling'''
     try:
         session = CrawlSession.objects.get(id=session_id)
         session.status = 'cancelled'

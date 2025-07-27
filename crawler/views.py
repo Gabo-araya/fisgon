@@ -83,6 +83,51 @@ def create_session(request):
     return render(request, 'crawler/create_session.html', context)
 
 
+
+@login_required(login_url='entrar')
+@allowed_users(allowed_roles=['admin', 'crawler'])
+def start_new_session(request):
+    """Crear e iniciar inmediatamente una nueva sesión de crawling"""
+    if request.method == 'POST':
+        try:
+            # Obtener datos del JSON
+            import json
+            data = json.loads(request.body)
+
+            # Crear nueva sesión
+            session = CrawlSession.objects.create(
+                name=data.get('name', f"Sesión {timezone.now().strftime('%Y-%m-%d %H:%M')}"),
+                user=request.user,
+                target_url=data.get('target_url'),
+                target_domain=data.get('target_domain'),
+                max_depth=data.get('max_depth', 3),
+                rate_limit=data.get('rate_limit', 1.0),
+                max_pages=data.get('max_pages', 1000),
+                file_types=data.get('file_types', []),
+                respect_robots_txt=data.get('respect_robots_txt', True),
+                follow_redirects=data.get('follow_redirects', True),
+                extract_metadata=data.get('extract_metadata', True),
+            )
+
+            # Iniciar crawling inmediatamente
+            start_crawl_session.delay(session.id)
+
+            return JsonResponse({
+                'success': True,
+                'session_id': session.id,
+                'message': f'Sesión "{session.name}" creada e iniciada exitosamente'
+            })
+
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'error': str(e)
+            }, status=400)
+
+    return JsonResponse({'success': False, 'error': 'Método no permitido'}, status=405)
+
+
+
 @login_required(login_url='entrar')
 @allowed_users(allowed_roles=['admin', 'crawler', 'viewer'])
 def session_list(request):
@@ -712,4 +757,3 @@ def api_dashboard_stats(request):
     }
 
     return JsonResponse(data)
-        '

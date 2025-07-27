@@ -9,7 +9,8 @@ urlpatterns = [
 
     # Gestión de sesiones
     path('sesiones/', views.session_list, name='session_list'),
-    path('sesiones/nuevo/', views.create_session, name='create_session'),
+    #path('sesiones/nuevo/', views.create_session, name='create_session'),
+    path('sesiones/nuevo/', views.start_new_session, name='start_new_session'),
     path('sesiones/<int:pk>/', views.session_detail, name='session_detail'),
     path('sesiones/<int:pk>/iniciar/', views.start_session, name='start_session'),
     path('sesiones/<int:pk>/detener/', views.stop_session, name='stop_session'),

@@ -9,7 +9,8 @@ from celery import Celery
 # Establecer el módulo de configuración de Django para el programa 'celery'
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
 
-app = Celery('fisgon_crawler')
+# app = Celery('fisgon_crawler')
+app = Celery('core')
 
 # Usar Django settings.py como archivo de configuración
 app.config_from_object('django.conf:settings', namespace='CELERY')

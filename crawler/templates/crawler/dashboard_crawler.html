@@ -207,7 +207,7 @@
                         <h5 class="card-title">
                             <i class="bi bi-clock-history"></i> Sesiones Recientes
                         </h5>
-                        <a href="{% url 'crawler:sessions' %}" class="btn btn-outline-primary btn-sm">
+                        <a href="{% url 'crawler:session_list' %}" class="btn btn-outline-primary btn-sm">
                             Ver todas
                         </a>
                     </div>
@@ -445,7 +445,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Función para iniciar una nueva sesión de crawling
     async function startCrawlSession(config) {
         try {
-            const response = await fetch('{% url "crawler:start_session" %}', {
+            const response = await fetch('{% url "crawler:start_new_session" %}', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

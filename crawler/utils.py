@@ -11,9 +11,9 @@ import logging
 logger = logging.getLogger('crawler')
 
 def is_valid_url(url: str, allowed_domain: str = None) -> bool:
-    """
+    '''
     Valida si una URL es válida y pertenece al dominio permitido
-    """
+    '''
     try:
         # Validación básica de URL
         if not validators.url(url):
@@ -62,9 +62,9 @@ def is_valid_url(url: str, allowed_domain: str = None) -> bool:
 
 
 def get_file_extension(url: str, content_type: str = None) -> str:
-    """
+    '''
     Determina la extensión de archivo basada en la URL y content-type
-    """
+    '''
     try:
         # Primero intentar extraer de la URL
         parsed = urlparse(url)
@@ -129,9 +129,9 @@ def get_file_extension(url: str, content_type: str = None) -> str:
 
 
 def is_allowed_file_type(file_extension: str, allowed_types: List[str]) -> bool:
-    """
+    '''
     Verifica si un tipo de archivo está en la lista de tipos permitidos
-    """
+    '''
 
     # extension = get_file_extension(url)
     # return extension in allowed_types if extension else False
@@ -143,9 +143,9 @@ def is_allowed_file_type(file_extension: str, allowed_types: List[str]) -> bool:
 
 
 def extract_robots_txt(robots_content: str) -> Dict[str, List[str]]:
-    """
+    '''
     Extrae reglas del archivo robots.txt
-    """
+    '''
     rules = {
         'disallow': [],
         'allow': [],
@@ -198,9 +198,9 @@ def extract_robots_txt(robots_content: str) -> Dict[str, List[str]]:
 
 
 def extract_robots_txt2(domain: str) -> dict:
-    """
+    '''
     Extrae y parsea el archivo robots.txt de un dominio
-    """
+    '''
     robots_info = {
         'allowed': [],
         'disallowed': [],
@@ -230,9 +230,9 @@ def extract_robots_txt2(domain: str) -> dict:
 
 
 # def should_respect_robots_txt(url: str, robots_rules: Dict[str, List[str]]) -> bool:
-#     """
+#     '''
 #     Verifica si una URL debería ser respetada según robots.txt
-#     """
+#     '''
 #     if not robots_rules:
 #         return True
 
@@ -260,9 +260,9 @@ def extract_robots_txt2(domain: str) -> dict:
 
 
 def should_respect_robots_txt(url: str, user_agent: str = "*") -> bool:
-    """
+    '''
     Verifica si se puede acceder a una URL según robots.txt
-    """
+    '''
     try:
         domain = get_domain_from_url(url)
         robots_url = f"https://{domain}/robots.txt"
@@ -281,9 +281,9 @@ def should_respect_robots_txt(url: str, user_agent: str = "*") -> bool:
 
 
 def clean_url(url: str) -> str:
-    """
+    '''
     Limpia y normaliza una URL
-    """
+    '''
     try:
         parsed = urlparse(url)
 
@@ -311,9 +311,9 @@ def clean_url(url: str) -> str:
 
 
 def normalize_url(url: str, base_url: str = None) -> str:
-    """
+    '''
     Normaliza una URL eliminando fragmentos y parámetros innecesarios
-    """
+    '''
     try:
         # Convertir URL relativa a absoluta si se proporciona base_url
         if base_url and not url.startswith(('http://', 'https://')):
@@ -337,9 +337,9 @@ def normalize_url(url: str, base_url: str = None) -> str:
 
 
 def extract_domain_from_url(url: str) -> str:
-    """
+    '''
     Extrae el dominio principal de una URL
-    """
+    '''
     try:
         extracted = tldextract.extract(url)
         return f"{extracted.domain}.{extracted.suffix}"
@@ -349,9 +349,9 @@ def extract_domain_from_url(url: str) -> str:
 
 
 def get_domain_from_url(url: str) -> str:
-    """
+    '''
     Extrae el dominio principal de una URL
-    """
+    '''
     try:
         extracted = tldextract.extract(url)
         return f"{extracted.domain}.{extracted.suffix}"
@@ -360,9 +360,9 @@ def get_domain_from_url(url: str) -> str:
 
 
 def is_binary_file(content_type: str) -> bool:
-    """
+    '''
     Determina si un content-type corresponde a un archivo binario
-    """
+    '''
     text_types = [
         'text/', 'application/json', 'application/xml',
         'application/javascript', 'application/x-javascript'
@@ -378,9 +378,9 @@ def is_binary_file(content_type: str) -> bool:
 
 
 def is_binary_content(content_type: str) -> bool:
-    """
+    '''
     Determina si un content-type corresponde a contenido binario
-    """
+    '''
     text_types = [
         'text/', 'application/json', 'application/xml',
         'application/javascript', 'application/html'
@@ -391,17 +391,17 @@ def is_binary_content(content_type: str) -> bool:
 
 
 def is_same_domain(url1: str, url2: str) -> bool:
-    """
+    '''
     Verifica si dos URLs pertenecen al mismo dominio
-    """
+    '''
     return get_domain_from_url(url1) == get_domain_from_url(url2)
 
 
 
 def get_url_depth(url: str, base_url: str) -> int:
-    """
+    '''
     Calcula la profundidad de una URL relativa a una URL base
-    """
+    '''
     try:
         base_parsed = urlparse(base_url)
         url_parsed = urlparse(url)
@@ -421,9 +421,9 @@ def get_url_depth(url: str, base_url: str) -> int:
 
 
 def get_url_priority(url: str, file_types_priority: dict = None) -> int:
-    """
+    '''
     Calcula la prioridad de una URL basada en su tipo
-    """
+    '''
     if not file_types_priority:
         file_types_priority = {
             'pdf': 1,
@@ -442,9 +442,9 @@ def get_url_priority(url: str, file_types_priority: dict = None) -> int:
 
 
 def estimate_file_size_from_headers(headers: dict) -> int:
-    """
+    '''
     Estima el tamaño de archivo desde headers HTTP
-    """
+    '''
     try:
         content_length = headers.get('content-length') or headers.get('Content-Length')
         if content_length:
@@ -456,9 +456,9 @@ def estimate_file_size_from_headers(headers: dict) -> int:
 
 
 def format_file_size(size_bytes: int) -> str:
-    """
+    '''
     Formatea el tamaño de archivo en formato legible
-    """
+    '''
     if size_bytes == 0:
         return "0 B"
 
@@ -472,9 +472,9 @@ def format_file_size(size_bytes: int) -> str:
 
 
 def is_likely_file_url(url: str) -> bool:
-    """
+    '''
     Determina si una URL probablemente apunta a un archivo descargable
-    """
+    '''
     try:
         parsed = urlparse(url)
         path = parsed.path.lower()
@@ -516,9 +516,9 @@ def is_likely_file_url(url: str) -> bool:
 
 
 def sanitize_filename(filename: str) -> str:
-    """
+    '''
     Sanitiza un nombre de archivo para guardarlo de forma segura
-    """
+    '''
     try:
         # Eliminar caracteres problemáticos
         filename = re.sub(r'[<>:"/\\|?*]', '_', filename)
@@ -541,9 +541,9 @@ def sanitize_filename(filename: str) -> str:
 
 
 def clean_filename(filename: str) -> str:
-    """
+    '''
     Limpia un nombre de archivo eliminando caracteres peligrosos
-    """
+    '''
     # Remover caracteres peligrosos
     cleaned = re.sub(r'[<>:"/\\|?*]', '_', filename)
 
@@ -557,9 +557,9 @@ def clean_filename(filename: str) -> str:
 
 
 def extract_urls_from_html(html_content: str, base_url: str) -> list:
-    """
+    '''
     Extrae URLs de contenido HTML
-    """
+    '''
     from bs4 import BeautifulSoup
 
     urls = []
@@ -610,9 +610,9 @@ def extract_urls_from_html(html_content: str, base_url: str) -> list:
 
 
 def sanitize_metadata_value(value) -> str:
-    """
+    '''
     Sanitiza valores de metadatos para almacenamiento seguro
-    """
+    '''
     if value is None:
         return ""
 
@@ -628,17 +628,17 @@ def sanitize_metadata_value(value) -> str:
 
 
 class CrawlerRateLimiter:
-    """
+    '''
     Implementa rate limiting para requests
-    """
+    '''
     def __init__(self, rate_limit: float):
         self.rate_limit = rate_limit  # requests per second
         self.last_request_time = 0
 
     def wait_if_needed(self):
-        """
+        '''
         Espera el tiempo necesario para respetar el rate limit
-        """
+        '''
         import time
 
         if self.rate_limit <= 0:
