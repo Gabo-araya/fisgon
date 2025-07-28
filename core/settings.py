@@ -9,6 +9,8 @@ https://docs.djangoproject.com/en/5.2/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
+
+from decouple import config
 import os
 from pathlib import Path
 
@@ -19,11 +21,16 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
+
+# SECRET_KEY (ahora viene del .env)
+# La función config() lee la variable del .env.
+# Es buena práctica poner un valor por defecto si no se encuentra la variable.
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-@8%6t$@2h3^rx3tc70b%z-epn3hx=%0(etg1r@#6u8i5aojhsg'
+SECRET_KEY = config('SECRET_KEY', default='una_clave_por_defecto_para_desarrollo')
+
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = config('DEBUG', default=True)
 
 ALLOWED_HOSTS = ['localhost', '127.0.0.1', '*']
 
@@ -102,6 +109,18 @@ DATABASES = {
     }
 }
 
+# Ejemplo con variables .env
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql', # O sqlite3, mysql, etc.
+#         'NAME': config('DB_NAME', default='mydatabase'),
+#         'USER': config('DB_USER', default='myuser'),
+#         'PASSWORD': config('DB_PASSWORD', default='mypassword'),
+#         'HOST': config('DB_HOST', default='localhost'),
+#         'PORT': config('DB_PORT', default=5432, cast=int), # cast=int para convertir a número
+#     }
+# }
+
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
@@ -165,14 +184,17 @@ ACCOUNT_AUTHENTICATION_METHOD = 'email'
 ACCOUNT_EMAIL_REQUIRED = True
 
 
+# MAIL_HOST_USER = config('EMAIL_HOST_USER', default='correo@ejemplo.com')
+
 # Celery Configuration
-CELERY_BROKER_URL = 'redis://localhost:6379/0'
-CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+CELERY_BROKER_URL = config('CELERY_BROKER_URL', default='redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = config('CELERY_RESULT_BACKEND', default='redis://localhost:6379/0')
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = TIME_ZONE
 CELERY_ENABLE_UTC = True
+
 
 # Crawler Configuration
 CRAWLER_SETTINGS = {
@@ -182,7 +204,7 @@ CRAWLER_SETTINGS = {
     'MAX_FILE_SIZE': 50 * 1024 * 1024,  # 50MB
     'TIMEOUT': 30,
     'MAX_RETRIES': 3,
-    'USER_AGENT': 'FisgonCrawler/1.0 (+https://github.com/Gabo-araya/fisgon-web-crawler)',
+    'USER_AGENT': 'FisgonCrawler/1.0 (+https://github.com/Gabo-araya/fisgon)',
     'ALLOWED_FILE_TYPES': [
         'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx',
         'odt', 'ods', 'odp', 'jpg', 'jpeg', 'png', 'gif',

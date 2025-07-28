@@ -100,6 +100,96 @@ Seguir los siguientes pasos para la instalación local.
 	- `python3 manage.py runserver`
 	- Iniciar en un puerto específico (8000):`python3 manage.py runserver 8000`
 
+
+
+
+### Ejemplo de archivo `.env`
+
+```
+# .env
+DEBUG=True
+
+SECRET_KEY=clave-secreta-aqui
+
+DATABASE_URL=sqlite:///db.sqlite3
+REDIS_URL=redis://localhost:6379/0
+ALLOWED_HOSTS=localhost,127.0.0.1
+
+# Configuración de Celery
+CELERY_BROKER_URL=redis://localhost:6379/0
+CELERY_RESULT_BACKEND=redis://localhost:6379/0
+
+# Configuración del Crawler
+CRAWLER_USER_AGENT=FisgonCrawler/1.0
+CRAWLER_MAX_DEPTH=5
+CRAWLER_RATE_LIMIT=1.0
+
+# Configuración de la base de datos (puedes ponerla aquí o en un solo string)
+# DB_NAME=fisgon_db
+# DB_USER=django_user
+# DB_PASSWORD=una_contraseña_segura
+# DB_HOST=localhost
+# DB_PORT=5432
+
+```
+
+
+### Crear Usuarios y Grupos
+```bash
+# Abrir shell de Django
+python manage.py shell
+```
+
+```
+# Dentro del shell de Django:
+from django.contrib.auth.models import User, Group
+
+# Crear grupos
+admin_group = Group.objects.create(name='admin')
+crawler_group = Group.objects.create(name='crawler')
+viewer_group = Group.objects.create(name='viewer')
+
+# Crear usuarios de prueba
+# Usuario crawler
+crawler_user = User.objects.create_user(
+    username='crawler',
+    email='crawler@example.com',
+    password='asdf.1234'
+)
+crawler_user.groups.add(crawler_group)
+
+# Usuario viewer
+viewer_user = User.objects.create_user(
+    username='viewer',
+    email='viewer@example.com',
+    password='asdf.1234'
+)
+viewer_user.groups.add(viewer_group)
+
+# Asignar el superusuario al grupo admin
+admin_user = User.objects.get(username='admin')  # Reemplazar con tu username
+admin_user.groups.add(admin_group)
+
+exit()
+```
+
+
+
+### Recolectar Archivos Estáticos
+
+```
+# Crear directorio static si no existe
+mkdir -p staticfiles
+
+# Recolectar archivos estáticos
+python manage.py collectstatic --noinput
+```
+
+
+
+
+
+
 ## Flujo de Trabajo Completo
 
 ### **1. Proceso de Crawling (Descubrimiento)**
@@ -304,6 +394,7 @@ Datos → Agregación → APIs → Frontend → Visualizaciones interactivas
    - PDF ejecutivo con hallazgos principales
    - CSV detallado para análisis técnico
    - Recomendaciones de mitigación
+
 
 
 

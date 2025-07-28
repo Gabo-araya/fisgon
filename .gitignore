@@ -166,3 +166,4 @@ nfo_ignore/
 insumos/
 bkup/
 BKUP/
+.env
