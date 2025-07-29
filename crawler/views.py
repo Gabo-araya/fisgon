@@ -19,7 +19,7 @@ from .tasks import start_crawl_session, stop_crawl_session
 @login_required(login_url='entrar')
 @allowed_users(allowed_roles=['admin', 'crawler'])
 def crawler_dashboard(request):
-    """Dashboard principal del crawler"""
+    '''Dashboard principal del crawler'''
 
     # Estadísticas generales
     user_sessions = CrawlSession.objects.filter(user=request.user)
@@ -57,7 +57,7 @@ def crawler_dashboard(request):
 @login_required(login_url='entrar')
 @allowed_users(allowed_roles=['admin', 'crawler'])
 def create_session(request):
-    """Crear nueva sesión de crawling"""
+    '''Crear nueva sesión de crawling'''
 
     if request.method == 'POST':
         form = CreateCrawlSessionForm(request.POST)
@@ -87,7 +87,7 @@ def create_session(request):
 @login_required(login_url='entrar')
 @allowed_users(allowed_roles=['admin', 'crawler'])
 def start_new_session(request):
-    """Crear e iniciar inmediatamente una nueva sesión de crawling"""
+    '''Crear e iniciar inmediatamente una nueva sesión de crawling'''
     if request.method == 'POST':
         try:
             # Obtener datos del JSON
@@ -131,7 +131,7 @@ def start_new_session(request):
 @login_required(login_url='entrar')
 @allowed_users(allowed_roles=['admin', 'crawler', 'viewer'])
 def session_list(request):
-    """Lista de sesiones de crawling"""
+    '''Lista de sesiones de crawling'''
 
     # Base queryset - los admins ven todo, otros solo sus sesiones
     if request.user.groups.filter(name='admin').exists():
@@ -190,7 +190,7 @@ def session_list(request):
 @login_required(login_url='entrar')
 @allowed_users(allowed_roles=['admin', 'crawler', 'viewer'])
 def session_detail(request, pk):
-    """Detalle de una sesión de crawling"""
+    '''Detalle de una sesión de crawling'''
 
     session = get_object_or_404(CrawlSession, pk=pk)
 
@@ -243,7 +243,7 @@ def session_detail(request, pk):
 @login_required(login_url='entrar')
 @allowed_users(allowed_roles=['admin', 'crawler'])
 def start_session(request, pk):
-    """Iniciar una sesión de crawling"""
+    '''Iniciar una sesión de crawling'''
 
     session = get_object_or_404(CrawlSession, pk=pk)
 
@@ -269,7 +269,7 @@ def start_session(request, pk):
 @login_required(login_url='entrar')
 @allowed_users(allowed_roles=['admin', 'crawler'])
 def stop_session(request, pk):
-    """Detener una sesión de crawling"""
+    '''Detener una sesión de crawling'''
 
     session = get_object_or_404(CrawlSession, pk=pk)
 
@@ -296,7 +296,7 @@ def stop_session(request, pk):
 @allowed_users(allowed_roles=['admin', 'crawler'])
 @require_http_methods(["POST"])
 def delete_session(request, pk):
-    """Eliminar una sesión de crawling"""
+    '''Eliminar una sesión de crawling'''
 
     session = get_object_or_404(CrawlSession, pk=pk)
 
@@ -319,7 +319,7 @@ def delete_session(request, pk):
 @login_required(login_url='entrar')
 @allowed_users(allowed_roles=['admin', 'crawler', 'viewer'])
 def session_progress(request, pk):
-    """API endpoint para obtener progreso de una sesión (HTMX)"""
+    '''API endpoint para obtener progreso de una sesión (HTMX)'''
 
     session = get_object_or_404(CrawlSession, pk=pk)
 
@@ -364,7 +364,7 @@ def session_progress(request, pk):
 @login_required(login_url='entrar')
 @allowed_users(allowed_roles=['admin', 'crawler', 'viewer'])
 def session_results(request, pk):
-    """Resultados de una sesión de crawling"""
+    '''Resultados de una sesión de crawling'''
 
     session = get_object_or_404(CrawlSession, pk=pk)
 
@@ -422,7 +422,7 @@ def session_results(request, pk):
 @login_required(login_url='entrar')
 @allowed_users(allowed_roles=['admin', 'crawler', 'viewer'])
 def session_logs(request, pk):
-    """Logs de una sesión de crawling"""
+    '''Logs de una sesión de crawling'''
 
     session = get_object_or_404(CrawlSession, pk=pk)
 
@@ -473,7 +473,7 @@ def session_logs(request, pk):
 @login_required(login_url='entrar')
 @allowed_users(allowed_roles=['admin', 'crawler', 'viewer'])
 def session_urls(request, pk):
-    """URLs descubiertas en una sesión de crawling"""
+    '''URLs descubiertas en una sesión de crawling'''
 
     session = get_object_or_404(CrawlSession, pk=pk)
 
@@ -542,7 +542,7 @@ def session_urls(request, pk):
 @allowed_users(allowed_roles=['admin', 'crawler'])
 @require_http_methods(["POST"])
 def bulk_actions(request):
-    """Acciones en lote sobre sesiones"""
+    '''Acciones en lote sobre sesiones'''
 
     form = BulkActionForm(request.POST)
 
@@ -599,7 +599,7 @@ def bulk_actions(request):
 @login_required(login_url='entrar')
 @allowed_users(allowed_roles=['admin', 'crawler', 'viewer'])
 def crawler_stats(request):
-    """Estadísticas generales del crawler"""
+    '''Estadísticas generales del crawler'''
 
     # Filtrar por usuario si no es admin
     if request.user.groups.filter(name='admin').exists():
@@ -665,7 +665,7 @@ def crawler_stats(request):
 @login_required(login_url='entrar')
 @allowed_users(allowed_roles=['admin', 'crawler', 'viewer'])
 def export_results(request, pk):
-    """Exportar resultados de una sesión a CSV"""
+    '''Exportar resultados de una sesión a CSV'''
 
     session = get_object_or_404(CrawlSession, pk=pk)
 
@@ -713,7 +713,7 @@ def export_results(request, pk):
 @login_required(login_url='entrar')
 @allowed_users(allowed_roles=['admin', 'crawler', 'viewer'])
 def api_session_status(request, pk):
-    """API para obtener estado actual de una sesión"""
+    '''API para obtener estado actual de una sesión'''
 
     session = get_object_or_404(CrawlSession, pk=pk)
 
@@ -741,7 +741,7 @@ def api_session_status(request, pk):
 @login_required(login_url='entrar')
 @allowed_users(allowed_roles=['admin', 'crawler', 'viewer'])
 def api_dashboard_stats(request):
-    """API para estadísticas del dashboard"""
+    '''API para estadísticas del dashboard'''
 
     if request.user.groups.filter(name='admin').exists():
         sessions = CrawlSession.objects.all()

@@ -1,0 +1,370 @@
+{% extends "panel/base_admin.html" %}
+{% load static %}
+{% block title %} {{ page }} {% endblock title %}
+
+{% block stylesheets %}
+<style>
+.session-card {
+    transition: all 0.3s ease;
+    border-left: 4px solid #dee2e6;
+}
+.session-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+.session-card.session-completed {
+    border-left-color: #198754;
+}
+.session-card.session-running {
+    border-left-color: #0dcaf0;
+}
+.session-card.session-failed {
+    border-left-color: #dc3545;
+}
+.session-card.session-pending {
+    border-left-color: #ffc107;
+}
+.session-card.session-paused {
+    border-left-color: #6c757d;
+}
+.session-card.session-cancelled {
+    border-left-color: #6c757d;
+}
+.stats-box {
+    border-right: 1px solid #dee2e6;
+}
+.stats-box:last-child {
+    border-right: none;
+}
+.filter-pills .badge {
+    cursor: pointer;
+    margin-right: 0.5rem;
+}
+.filter-pills .badge:hover {
+    opacity: 0.8;
+}
+</style>
+{% endblock stylesheets %}
+
+{% block content %}
+
+<main id="main" class="main">
+    <div class="pagetitle">
+        <h1><i class="{{ icon }}"></i> {{ page }}</h1>
+        <nav>
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'index' %}">Inicio</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'crawler:dashboard' %}">Crawler</a></li>
+                <li class="breadcrumb-item active">{{ page }}</li>
+            </ol>
+        </nav>
+    </div>
+
+    <section class="section">
+        <!-- Filtros y búsqueda -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Filtros y Búsqueda</h5>
+                        
+                        <form method="get" id="filterForm">
+                            <div class="row g-3">
+                                <div class="col-md-3">
+                                    <label class="form-label">Estado</label>
+                                    <select name="status" class="form-select" onchange="this.form.submit()">
+                                        <option value="">Todos los estados</option>
+                                        <option value="pending" {% if request.GET.status == 'pending' %}selected{% endif %}>
+                                            🟡 Pendiente
+                                        </option>
+                                        <option value="running" {% if request.GET.status == 'running' %}selected{% endif %}>
+                                            🔵 Ejecutando
+                                        </option>
+                                        <option value="paused" {% if request.GET.status == 'paused' %}selected{% endif %}>
+                                            ⏸️ Pausado
+                                        </option>
+                                        <option value="completed" {% if request.GET.status == 'completed' %}selected{% endif %}>
+                                            🟢 Completado
+                                        </option>
+                                        <option value="failed" {% if request.GET.status == 'failed' %}selected{% endif %}>
+                                            🔴 Fallido
+                                        </option>
+                                        <option value="cancelled" {% if request.GET.status == 'cancelled' %}selected{% endif %}>
+                                            ⚫ Cancelado
+                                        </option>
+                                    </select>
+                                </div>
+                                
+                                <div class="col-md-3">
+                                    <label class="form-label">Dominio</label>
+                                    <input type="text" name="domain" class="form-control" 
+                                           placeholder="Buscar por dominio..." 
+                                           value="{{ request.GET.domain }}">
+                                </div>
+                                
+                                <div class="col-md-2">
+                                    <label class="form-label">Desde</label>
+                                    <input type="date" name="date_from" class="form-control" 
+                                           value="{{ request.GET.date_from }}">
+                                </div>
+                                
+                                <div class="col-md-2">
+                                    <label class="form-label">Hasta</label>
+                                    <input type="date" name="date_to" class="form-control" 
+                                           value="{{ request.GET.date_to }}">
+                                </div>
+                                
+                                <div class="col-md-2">
+                                    <label class="form-label">&nbsp;</label>
+                                    <div>
+                                        <button type="submit" class="btn btn-primary">
+                                            <i class="bi bi-search"></i> Buscar
+                                        </button>
+                                        <a href="{% url 'crawler:session_list' %}" class="btn btn-outline-secondary">
+                                            <i class="bi bi-x-circle"></i>
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
+                        
+                        <!-- Filtros rápidos -->
+                        <div class="filter-pills mt-3">
+                            <span class="badge bg-secondary" onclick="clearFilters()">
+                                Todas ({{ total_sessions }})
+                            </span>
+                            <span class="badge bg-info" onclick="filterByStatus('running')">
+                                Ejecutando
+                            </span>
+                            <span class="badge bg-warning" onclick="filterByStatus('pending')">
+                                Pendientes
+                            </span>
+                            <span class="badge bg-success" onclick="filterByStatus('completed')">
+                                Completadas
+                            </span>
+                            <span class="badge bg-danger" onclick="filterByStatus('failed')">
+                                Fallidas
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Botón nueva sesión -->
+        <div class="row mb-3">
+            <div class="col-12 text-end">
+                <a href="{% url 'crawler:create_session' %}" class="btn btn-success">
+                    <i class="bi bi-plus-circle"></i> Nueva Sesión de Crawling
+                </a>
+            </div>
+        </div>
+
+        <!-- Lista de sesiones -->
+        <div class="row">
+            {% if page_obj %}
+                {% for session in page_obj %}
+                <div class="col-lg-6">
+                    <div class="card session-card session-{{ session.status }} mb-3">
+                        <div class="card-body">
+                            <!-- Encabezado -->
+                            <div class="d-flex justify-content-between align-items-start mb-3">
+                                <div>
+                                    <h5 class="card-title mb-1">
+                                        <a href="{% url 'crawler:session_detail' session.pk %}" 
+                                           class="text-decoration-none text-dark">
+                                            {{ session.name|truncatechars:50 }}
+                                        </a>
+                                    </h5>
+                                    <p class="text-muted mb-0">
+                                        <i class="bi bi-globe"></i> {{ session.target_domain }}
+                                        {% if session.user != request.user %}
+                                        <span class="ms-2">
+                                            <i class="bi bi-person"></i> {{ session.user.username }}
+                                        </span>
+                                        {% endif %}
+                                    </p>
+                                </div>
+                                <div>
+                                    {% if session.status == 'completed' %}
+                                        <span class="badge bg-success">Completado</span>
+                                    {% elif session.status == 'running' %}
+                                        <span class="badge bg-info">Ejecutando</span>
+                                    {% elif session.status == 'failed' %}
+                                        <span class="badge bg-danger">Fallido</span>
+                                    {% elif session.status == 'pending' %}
+                                        <span class="badge bg-warning">Pendiente</span>
+                                    {% elif session.status == 'paused' %}
+                                        <span class="badge bg-secondary">Pausado</span>
+                                    {% elif session.status == 'cancelled' %}
+                                        <span class="badge bg-dark">Cancelado</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <!-- Estadísticas -->
+                            <div class="row text-center mb-3">
+                                <div class="col-4 stats-box">
+                                    <small class="text-muted d-block">URLs</small>
+                                    <strong>{{ session.total_urls_processed }}/{{ session.max_pages }}</strong>
+                                </div>
+                                <div class="col-4 stats-box">
+                                    <small class="text-muted d-block">Archivos</small>
+                                    <strong>{{ session.total_files_found }}</strong>
+                                </div>
+                                <div class="col-4 stats-box">
+                                    <small class="text-muted d-block">Errores</small>
+                                    <strong class="{% if session.total_errors > 0 %}text-danger{% endif %}">
+                                        {{ session.total_errors }}
+                                    </strong>
+                                </div>
+                            </div>
+
+                            <!-- Barra de progreso para sesiones activas -->
+                            {% if session.status == 'running' %}
+                            <div class="progress mb-3" style="height: 15px;">
+                                <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                     role="progressbar" 
+                                     style="width: {{ session.progress_percentage }}%"
+                                     aria-valuenow="{{ session.progress_percentage }}" 
+                                     aria-valuemin="0" 
+                                     aria-valuemax="100">
+                                    {{ session.progress_percentage|floatformat:0 }}%
+                                </div>
+                            </div>
+                            {% endif %}
+
+                            <!-- Información de tiempo y acciones -->
+                            <div class="d-flex justify-content-between align-items-center">
+                                <small class="text-muted">
+                                    <i class="bi bi-calendar"></i> {{ session.created_at|date:"d/m/Y H:i" }}
+                                    {% if session.completed_at %}
+                                    <br>
+                                    <i class="bi bi-check-circle"></i> Completado: {{ session.completed_at|date:"d/m/Y H:i" }}
+                                    {% elif session.started_at %}
+                                    <br>
+                                    <i class="bi bi-play-circle"></i> Iniciado: {{ session.started_at|date:"H:i" }}
+                                    {% endif %}
+                                </small>
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{% url 'crawler:session_detail' session.pk %}" 
+                                       class="btn btn-outline-primary" title="Ver detalles">
+                                        <i class="bi bi-eye"></i> Ver
+                                    </a>
+                                    {% if session.status == 'pending' %}
+                                    <a href="{% url 'crawler:start_session' session.pk %}" 
+                                       class="btn btn-outline-success" title="Iniciar crawling">
+                                        <i class="bi bi-play"></i> Iniciar
+                                    </a>
+                                    {% elif session.status == 'running' %}
+                                    <a href="{% url 'crawler:stop_session' session.pk %}" 
+                                       class="btn btn-outline-danger" title="Detener crawling"
+                                       onclick="return confirm('¿Estás seguro de detener esta sesión?');">
+                                        <i class="bi bi-stop"></i> Detener
+                                    </a>
+                                    {% elif session.status == 'completed' %}
+                                    <a href="{% url 'crawler:export_results' session.pk %}" 
+                                       class="btn btn-outline-success" title="Exportar resultados">
+                                        <i class="bi bi-download"></i> Exportar
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-body text-center py-5">
+                            <i class="bi bi-inbox display-1 text-muted"></i>
+                            <h4 class="mt-3 text-muted">No se encontraron sesiones</h4>
+                            <p class="text-muted">
+                                {% if request.GET.status or request.GET.domain or request.GET.date_from or request.GET.date_to %}
+                                    No hay sesiones que coincidan con los filtros aplicados.
+                                    <br>
+                                    <a href="{% url 'crawler:session_list' %}">Ver todas las sesiones</a>
+                                {% else %}
+                                    Aún no has creado ninguna sesión de crawling.
+                                {% endif %}
+                            </p>
+                            <a href="{% url 'crawler:create_session' %}" class="btn btn-primary mt-3">
+                                <i class="bi bi-plus-circle"></i> Crear Primera Sesión
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Paginación -->
+        {% if page_obj.has_other_pages %}
+        <div class="row mt-4">
+            <div class="col-12">
+                <nav aria-label="Navegación de páginas">
+                    <ul class="pagination justify-content-center">
+                        {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page=1{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.domain %}&domain={{ request.GET.domain }}{% endif %}">
+                                <i class="bi bi-chevron-double-left"></i>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.domain %}&domain={{ request.GET.domain }}{% endif %}">
+                                <i class="bi bi-chevron-left"></i>
+                            </a>
+                        </li>
+                        {% endif %}
+                        
+                        <li class="page-item active">
+                            <span class="page-link">
+                                Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
+                            </span>
+                        </li>
+                        
+                        {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.domain %}&domain={{ request.GET.domain }}{% endif %}">
+                                <i class="bi bi-chevron-right"></i>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.domain %}&domain={{ request.GET.domain }}{% endif %}">
+                                <i class="bi bi-chevron-double-right"></i>
+                            </a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            </div>
+        </div>
+        {% endif %}
+    </section>
+</main>
+
+{% endblock content %}
+
+{% block javascripts %}
+<script>
+function filterByStatus(status) {
+    const form = document.getElementById('filterForm');
+    const statusSelect = form.querySelector('select[name="status"]');
+    statusSelect.value = status;
+    form.submit();
+}
+
+function clearFilters() {
+    window.location.href = '{% url "crawler:session_list" %}';
+}
+
+// Auto-refresh si hay sesiones en ejecución
+{% for session in page_obj %}
+    {% if session.status == 'running' %}
+    setTimeout(function() {
+        location.reload();
+    }, 30000); // Actualizar cada 30 segundos
+    {% endif %}
+{% endfor %}
+</script>
+{% endblock javascripts %}

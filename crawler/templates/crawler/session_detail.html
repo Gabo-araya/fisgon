@@ -4,37 +4,61 @@
 
 {% block stylesheets %}
 <style>
-.session-status {
-    font-size: 1.1rem;
-    font-weight: 600;
+.status-badge-large {
+    font-size: 1rem;
+    padding: 0.5rem 1rem;
 }
-.metric-card {
-    text-align: center;
-    padding: 1rem;
-    border-radius: 0.375rem;
-    border: 1px solid #dee2e6;
+.progress-circle {
+    width: 120px;
+    height: 120px;
+    margin: 0 auto;
 }
-.metric-value {
-    font-size: 2rem;
-    font-weight: bold;
+.stat-card {
+    border-left: 4px solid #4154f1;
+    transition: all 0.3s;
+}
+.stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+.stat-card.danger {
+    border-left-color: #dc3545;
+}
+.stat-card.success {
+    border-left-color: #198754;
+}
+.stat-card.info {
+    border-left-color: #0dcaf0;
+}
+.log-entry {
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+    padding: 0.5rem;
+    border-bottom: 1px solid #dee2e6;
+}
+.log-entry.ERROR {
+    background-color: #f8d7da;
+}
+.log-entry.WARNING {
+    background-color: #fff3cd;
+}
+.log-entry.INFO {
+    background-color: #d1ecf1;
+}
+.url-item {
+    border-bottom: 1px solid #dee2e6;
+    padding: 0.75rem 0;
+}
+.url-item:last-child {
+    border-bottom: none;
+}
+.file-type-chart {
+    max-height: 300px;
+}
+.action-buttons .btn {
+    margin-right: 0.5rem;
     margin-bottom: 0.5rem;
 }
-.metric-label {
-    color: #6c757d;
-    font-size: 0.875rem;
-}
-.status-indicator {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    display: inline-block;
-    margin-right: 8px;
-}
-.log-level-DEBUG { color: #6c757d; }
-.log-level-INFO { color: #0dcaf0; }
-.log-level-WARNING { color: #ffc107; }
-.log-level-ERROR { color: #dc3545; }
-.log-level-CRITICAL { color: #dc3545; font-weight: bold; }
 </style>
 {% endblock stylesheets %}
 
@@ -48,442 +72,446 @@
                 <li class="breadcrumb-item"><a href="{% url 'index' %}">Inicio</a></li>
                 <li class="breadcrumb-item"><a href="{% url 'crawler:dashboard' %}">Crawler</a></li>
                 <li class="breadcrumb-item"><a href="{% url 'crawler:session_list' %}">Sesiones</a></li>
-                <li class="breadcrumb-item active">{{ session.name }}</li>
+                <li class="breadcrumb-item active">{{ session.name|truncatechars:30 }}</li>
             </ol>
         </nav>
     </div>
 
-    <!-- Información de la sesión -->
     <section class="section">
+        <!-- Información principal y acciones -->
         <div class="row">
             <div class="col-lg-8">
-                <!-- Estado y controles -->
                 <div class="card">
                     <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div class="d-flex justify-content-between align-items-start mt-3">
                             <div>
-                                <h5 class="card-title mb-2">{{ session.name }}</h5>
-                                <div class="session-status">
-                                    {% if session.status == 'pending' %}
-                                        <span class="badge bg-warning status-indicator"></span>
-                                        <span class="text-warning">Pendiente</span>
-                                    {% elif session.status == 'running' %}
-                                        <span class="badge bg-success status-indicator"></span>
-                                        <span class="text-success">Ejecutándose</span>
-                                    {% elif session.status == 'paused' %}
-                                        <span class="badge bg-secondary status-indicator"></span>
-                                        <span class="text-secondary">Pausado</span>
-                                    {% elif session.status == 'completed' %}
-                                        <span class="badge bg-primary status-indicator"></span>
-                                        <span class="text-primary">Completado</span>
-                                    {% elif session.status == 'failed' %}
-                                        <span class="badge bg-danger status-indicator"></span>
-                                        <span class="text-danger">Fallido</span>
-                                    {% elif session.status == 'cancelled' %}
-                                        <span class="badge bg-secondary status-indicator"></span>
-                                        <span class="text-secondary">Cancelado</span>
-                                    {% endif %}
-                                </div>
+                                <h5 class="card-title mb-1">{{ session.name }}</h5>
+                                <p class="text-muted mb-2">
+                                    <i class="bi bi-globe"></i> <a href="{{ session.target_url }}" target="_blank">{{ session.target_domain }}</a>
+                                    | <i class="bi bi-person"></i> {{ session.user.username }}
+                                    | <i class="bi bi-calendar"></i> {{ session.created_at|date:"d/m/Y H:i" }}
+                                </p>
                             </div>
-
-                            <div class="btn-group">
-                                {% if session.status == 'pending' %}
-                                <a href="{% url 'crawler:start_session' session.pk %}"
-                                   class="btn btn-success">
-                                    <i class="bi bi-play-circle"></i> Iniciar
-                                </a>
+                            <div>
+                                {% if session.status == 'completed' %}
+                                    <span class="badge bg-success status-badge-large">Completado</span>
                                 {% elif session.status == 'running' %}
-                                <a href="{% url 'crawler:stop_session' session.pk %}"
-                                   class="btn btn-danger"
-                                   onclick="return confirm('¿Detener esta sesión?')">
-                                    <i class="bi bi-stop-circle"></i> Detener
-                                </a>
-                                {% endif %}
-
-                                <a href="{% url 'crawler:export_results' session.pk %}"
-                                   class="btn btn-outline-secondary">
-                                    <i class="bi bi-download"></i> Exportar
-                                </a>
-
-                                {% if not session.is_active %}
-                                <a href="{% url 'crawler:delete_session' session.pk %}"
-                                   class="btn btn-outline-danger"
-                                   onclick="return confirm('¿Eliminar esta sesión permanentemente?')">
-                                    <i class="bi bi-trash"></i>
-                                </a>
+                                    <span class="badge bg-info status-badge-large">Ejecutando</span>
+                                {% elif session.status == 'failed' %}
+                                    <span class="badge bg-danger status-badge-large">Fallido</span>
+                                {% elif session.status == 'pending' %}
+                                    <span class="badge bg-warning status-badge-large">Pendiente</span>
+                                {% elif session.status == 'paused' %}
+                                    <span class="badge bg-secondary status-badge-large">Pausado</span>
+                                {% elif session.status == 'cancelled' %}
+                                    <span class="badge bg-dark status-badge-large">Cancelado</span>
                                 {% endif %}
                             </div>
                         </div>
 
-                        <!-- Progreso -->
-                        <div id="progress-container"
-                             hx-get="{% url 'crawler:session_progress' session.pk %}"
-                             hx-trigger="every 5s"
-                             hx-target="#progress-container">
-                            {% include 'crawler/partials/progress_bar.html' %}
+                        <!-- Botones de acción -->
+                        <div class="action-buttons mt-3">
+                            {% if session.status == 'pending' %}
+                            <a href="{% url 'crawler:start_session' session.pk %}" class="btn btn-success">
+                                <i class="bi bi-play-circle"></i> Iniciar Crawling
+                            </a>
+                            {% elif session.status == 'running' %}
+                            <a href="{% url 'crawler:stop_session' session.pk %}" class="btn btn-danger"
+                               onclick="return confirm('¿Estás seguro de detener esta sesión?');">
+                                <i class="bi bi-stop-circle"></i> Detener
+                            </a>
+                            <button class="btn btn-warning" onclick="pauseSession({{ session.pk }})">
+                                <i class="bi bi-pause-circle"></i> Pausar
+                            </button>
+                            {% elif session.status == 'paused' %}
+                            <button class="btn btn-success" onclick="resumeSession({{ session.pk }})">
+                                <i class="bi bi-play-circle"></i> Reanudar
+                            </button>
+                            {% endif %}
+                            
+                            {% if session.status in 'completed,failed,cancelled' %}
+                            <a href="{% url 'crawler:export_results' session.pk %}" class="btn btn-primary">
+                                <i class="bi bi-download"></i> Exportar Resultados
+                            </a>
+                            {% endif %}
+                            
+                            <a href="{% url 'crawler:session_logs' session.pk %}" class="btn btn-secondary">
+                                <i class="bi bi-file-text"></i> Ver Logs Completos
+                            </a>
+                            
+                            {% if request.user == session.user or request.user.groups.filter.name == 'admin' %}
+                            <a href="{% url 'crawler:delete_session' session.pk %}" class="btn btn-outline-danger"
+                               onclick="return confirm('¿Estás seguro de eliminar esta sesión? Esta acción no se puede deshacer.');">
+                                <i class="bi bi-trash"></i> Eliminar
+                            </a>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
+            </div>
 
-                <!-- Métricas principales -->
+            <!-- Progreso visual -->
+            <div class="col-lg-4">
                 <div class="card">
-                    <div class="card-body">
-                        <h5 class="card-title">Métricas de la Sesión</h5>
-
-                        <div class="row">
-                            <div class="col-md-3">
-                                <div class="metric-card bg-light">
-                                    <div class="metric-value text-primary">{{ session.total_urls_discovered }}</div>
-                                    <div class="metric-label">URLs Descubiertas</div>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="metric-card bg-light">
-                                    <div class="metric-value text-success">{{ session.total_urls_processed }}</div>
-                                    <div class="metric-label">URLs Procesadas</div>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="metric-card bg-light">
-                                    <div class="metric-value text-info">{{ session.total_files_found }}</div>
-                                    <div class="metric-label">Archivos Encontrados</div>
-                                </div>
-                            </div>
-                            <div class="col-md-3">
-                                <div class="metric-card bg-light">
-                                    <div class="metric-value {% if session.total_errors > 0 %}text-danger{% else %}text-muted{% endif %}">
-                                        {{ session.total_errors }}
-                                    </div>
-                                    <div class="metric-label">Errores</div>
-                                </div>
-                            </div>
+                    <div class="card-body text-center">
+                        <h5 class="card-title">Progreso</h5>
+                        <div class="progress-circle">
+                            <canvas id="progressChart" width="120" height="120"></canvas>
                         </div>
+                        <h3 class="mt-3">{{ session.progress_percentage|floatformat:0 }}%</h3>
+                        <p class="text-muted">
+                            {{ session.total_urls_processed }} de {{ session.max_pages }} URLs
+                        </p>
+                        {% if session.status == 'running' %}
+                        <small class="text-info">
+                            <i class="bi bi-arrow-repeat spin"></i> Actualizando...
+                        </small>
+                        {% endif %}
                     </div>
                 </div>
+            </div>
+        </div>
 
-                <!-- Navegación por pestañas -->
+        <!-- Estadísticas -->
+        <div class="row mt-3">
+            <div class="col-md-3">
+                <div class="card stat-card info">
+                    <div class="card-body">
+                        <h5 class="card-title">URLs Descubiertas</h5>
+                        <h2>{{ session.total_urls_discovered }}</h2>
+                        <small class="text-muted">Total encontradas</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stat-card success">
+                    <div class="card-body">
+                        <h5 class="card-title">URLs Procesadas</h5>
+                        <h2>{{ session.total_urls_processed }}</h2>
+                        <small class="text-muted">Completadas</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stat-card info">
+                    <div class="card-body">
+                        <h5 class="card-title">Archivos Encontrados</h5>
+                        <h2>{{ session.total_files_found }}</h2>
+                        <small class="text-muted">Documentos</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stat-card danger">
+                    <div class="card-body">
+                        <h5 class="card-title">Errores</h5>
+                        <h2>{{ session.total_errors }}</h2>
+                        <small class="text-muted">URLs fallidas</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Configuración y estadísticas detalladas -->
+        <div class="row mt-3">
+            <!-- Configuración -->
+            <div class="col-lg-6">
                 <div class="card">
                     <div class="card-body">
-                        <ul class="nav nav-tabs nav-tabs-bordered" role="tablist">
+                        <h5 class="card-title">Configuración</h5>
+                        <table class="table table-sm">
+                            <tr>
+                                <td><strong>URL Inicial:</strong></td>
+                                <td><a href="{{ session.target_url }}" target="_blank">{{ session.target_url|truncatechars:40 }}</a></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Profundidad Máxima:</strong></td>
+                                <td>{{ session.max_depth }} niveles</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Límite de Velocidad:</strong></td>
+                                <td>{{ session.rate_limit }} req/seg</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Máximo de Páginas:</strong></td>
+                                <td>{{ session.max_pages }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Tamaño Máximo de Archivo:</strong></td>
+                                <td>{{ session.max_file_size|filesizeformat }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Respetar robots.txt:</strong></td>
+                                <td>
+                                    {% if session.respect_robots_txt %}
+                                        <i class="bi bi-check-circle text-success"></i> Sí
+                                    {% else %}
+                                        <i class="bi bi-x-circle text-danger"></i> No
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            <tr>
+                                <td><strong>Tipos de Archivo:</strong></td>
+                                <td>
+                                    {% for file_type in session.get_file_types_list %}
+                                        <span class="badge bg-secondary">{{ file_type|upper }}</span>
+                                    {% endfor %}
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Estadísticas por tipo de archivo -->
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Archivos por Tipo</h5>
+                        {% if file_type_stats %}
+                        <canvas id="fileTypeChart" class="file-type-chart"></canvas>
+                        <div class="mt-3">
+                            {% for stat in file_type_stats %}
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>
+                                    <span class="badge bg-secondary">{{ stat.url_type|upper }}</span>
+                                </span>
+                                <strong>{{ stat.count }} archivos</strong>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <p class="text-muted text-center">No hay archivos encontrados aún.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabs para diferentes vistas -->
+        <div class="row mt-3">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <ul class="nav nav-tabs" id="sessionTabs" role="tablist">
                             <li class="nav-item" role="presentation">
-                                <button class="nav-link active" id="overview-tab" data-bs-toggle="tab"
-                                        data-bs-target="#overview" type="button" role="tab">
-                                    <i class="bi bi-info-circle"></i> Resumen
-                                </button>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link" id="files-tab" data-bs-toggle="tab"
-                                        data-bs-target="#files" type="button" role="tab">
-                                    <i class="bi bi-files"></i> Archivos ({{ recent_files|length }})
-                                </button>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link" id="urls-tab" data-bs-toggle="tab"
+                                <button class="nav-link active" id="urls-tab" data-bs-toggle="tab" 
                                         data-bs-target="#urls" type="button" role="tab">
-                                    <i class="bi bi-link-45deg"></i> URLs ({{ recent_urls|length }})
+                                    <i class="bi bi-link-45deg"></i> URLs Recientes
                                 </button>
                             </li>
                             <li class="nav-item" role="presentation">
-                                <button class="nav-link" id="logs-tab" data-bs-toggle="tab"
+                                <button class="nav-link" id="files-tab" data-bs-toggle="tab" 
+                                        data-bs-target="#files" type="button" role="tab">
+                                    <i class="bi bi-file-earmark"></i> Archivos Encontrados
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="logs-tab" data-bs-toggle="tab" 
                                         data-bs-target="#logs" type="button" role="tab">
-                                    <i class="bi bi-journal-text"></i> Logs ({{ recent_logs|length }})
+                                    <i class="bi bi-terminal"></i> Logs Recientes
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="stats-tab" data-bs-toggle="tab" 
+                                        data-bs-target="#stats" type="button" role="tab">
+                                    <i class="bi bi-bar-chart"></i> Estadísticas
                                 </button>
                             </li>
                         </ul>
-
-                        <div class="tab-content pt-3">
-                            <!-- Pestaña Resumen -->
-                            <div class="tab-pane fade show active" id="overview" role="tabpanel">
-                                <div class="row">
-                                    <div class="col-md-6">
-                                        <h6>Configuración</h6>
-                                        <ul class="list-unstyled">
-                                            <li><strong>Dominio objetivo:</strong> {{ session.target_domain }}</li>
-                                            <li><strong>URL inicial:</strong>
-                                                <a href="{{ session.target_url }}" target="_blank" class="text-decoration-none">
-                                                    {{ session.target_url|truncatechars:50 }}
-                                                    <i class="bi bi-box-arrow-up-right small"></i>
-                                                </a>
-                                            </li>
-                                            <li><strong>Profundidad máxima:</strong> {{ session.max_depth }} niveles</li>
-                                            <li><strong>Velocidad:</strong> {{ session.rate_limit }} req/seg</li>
-                                            <li><strong>Máximo páginas:</strong> {{ session.max_pages }}</li>
-                                        </ul>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <h6>Configuración avanzada</h6>
-                                        <ul class="list-unstyled">
-                                            <li>
-                                                <i class="bi bi-{% if session.respect_robots_txt %}check-circle text-success{% else %}x-circle text-danger{% endif %}"></i>
-                                                Respetar robots.txt
-                                            </li>
-                                            <li>
-                                                <i class="bi bi-{% if session.follow_redirects %}check-circle text-success{% else %}x-circle text-danger{% endif %}"></i>
-                                                Seguir redirecciones
-                                            </li>
-                                            <li>
-                                                <i class="bi bi-{% if session.extract_metadata %}check-circle text-success{% else %}x-circle text-danger{% endif %}"></i>
-                                                Extraer metadatos
-                                            </li>
-                                        </ul>
-
-                                        {% if session.get_file_types_list %}
-                                        <h6>Tipos de archivo buscados</h6>
-                                        <div>
-                                            {% for file_type in session.get_file_types_list %}
-                                            <span class="badge bg-secondary me-1">{{ file_type|upper }}</span>
-                                            {% endfor %}
-                                        </div>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Pestaña Archivos -->
-                            <div class="tab-pane fade" id="files" role="tabpanel">
-                                {% if recent_files %}
-                                <div class="table-responsive">
-                                    <table class="table table-hover">
-                                        <thead>
-                                            <tr>
-                                                <th>Archivo</th>
-                                                <th>URL</th>
-                                                <th>Tamaño</th>
-                                                <th>Fecha</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {% for file in recent_files %}
-                                            <tr>
-                                                <td>
-                                                    <i class="bi bi-file-earmark"></i>
-                                                    {{ file.file_name|default:"Sin nombre" }}
-                                                </td>
-                                                <td>
-                                                    <a href="{{ file.url_queue_item.url }}" target="_blank" class="text-decoration-none">
-                                                        {{ file.url_queue_item.url|truncatechars:60 }}
-                                                        <i class="bi bi-box-arrow-up-right small"></i>
-                                                    </a>
-                                                </td>
-                                                <td>
-                                                    {% if file.url_queue_item.file_size %}
-                                                        {{ file.url_queue_item.file_size|filesizeformat }}
-                                                    {% else %}
-                                                        -
-                                                    {% endif %}
-                                                </td>
-                                                <td>
-                                                    <small class="text-muted">{{ file.created_at|date:"d/m/Y H:i" }}</small>
-                                                </td>
-                                            </tr>
-                                            {% endfor %}
-                                        </tbody>
-                                    </table>
-                                </div>
-
-                                <div class="text-center">
-                                    <a href="{% url 'crawler:session_results' session.pk %}" class="btn btn-outline-primary">
-                                        Ver Todos los Archivos
-                                    </a>
-                                </div>
-                                {% else %}
-                                <div class="text-center text-muted py-4">
-                                    <i class="bi bi-inbox" style="font-size: 3rem;"></i>
-                                    <p>No se han encontrado archivos aún</p>
-                                </div>
-                                {% endif %}
-                            </div>
-
-                            <!-- Pestaña URLs -->
-                            <div class="tab-pane fade" id="urls" role="tabpanel">
+                        
+                        <div class="tab-content mt-3" id="sessionTabsContent">
+                            <!-- URLs Recientes -->
+                            <div class="tab-pane fade show active" id="urls" role="tabpanel">
                                 {% if recent_urls %}
                                 <div class="table-responsive">
-                                    <table class="table table-hover">
+                                    <table class="table table-sm">
                                         <thead>
                                             <tr>
                                                 <th>URL</th>
                                                 <th>Estado</th>
                                                 <th>Tipo</th>
                                                 <th>Profundidad</th>
-                                                <th>Fecha</th>
+                                                <th>Procesado</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {% for url in recent_urls %}
                                             <tr>
                                                 <td>
-                                                    <a href="{{ url.url }}" target="_blank" class="text-decoration-none">
-                                                        {{ url.url|truncatechars:60 }}
-                                                        <i class="bi bi-box-arrow-up-right small"></i>
+                                                    <a href="{{ url.url }}" target="_blank" class="text-truncate d-inline-block" style="max-width: 400px;">
+                                                        {{ url.url }}
                                                     </a>
                                                 </td>
                                                 <td>
                                                     {% if url.status == 'completed' %}
                                                         <span class="badge bg-success">Completado</span>
+                                                    {% elif url.status == 'processing' %}
+                                                        <span class="badge bg-info">Procesando</span>
                                                     {% elif url.status == 'failed' %}
                                                         <span class="badge bg-danger">Fallido</span>
-                                                    {% elif url.status == 'processing' %}
-                                                        <span class="badge bg-primary">Procesando</span>
                                                     {% elif url.status == 'pending' %}
                                                         <span class="badge bg-warning">Pendiente</span>
                                                     {% else %}
                                                         <span class="badge bg-secondary">{{ url.get_status_display }}</span>
                                                     {% endif %}
                                                 </td>
-                                                <td>
-                                                    <span class="badge bg-info">{{ url.url_type|upper }}</span>
-                                                </td>
+                                                <td><span class="badge bg-secondary">{{ url.url_type|upper }}</span></td>
                                                 <td>{{ url.depth }}</td>
                                                 <td>
-                                                    <small class="text-muted">{{ url.discovered_at|date:"d/m/Y H:i" }}</small>
+                                                    {% if url.processed_at %}
+                                                        {{ url.processed_at|date:"H:i:s" }}
+                                                    {% else %}
+                                                        -
+                                                    {% endif %}
                                                 </td>
                                             </tr>
                                             {% endfor %}
                                         </tbody>
                                     </table>
                                 </div>
-
-                                <div class="text-center">
-                                    <a href="{% url 'crawler:session_urls' session.pk %}" class="btn btn-outline-primary">
-                                        Ver Todas las URLs
+                                <div class="text-center mt-3">
+                                    <a href="{% url 'crawler:session_urls' session.pk %}" class="btn btn-sm btn-primary">
+                                        Ver todas las URLs
                                     </a>
                                 </div>
                                 {% else %}
-                                <div class="text-center text-muted py-4">
-                                    <i class="bi bi-link-45deg" style="font-size: 3rem;"></i>
-                                    <p>No se han descubierto URLs aún</p>
-                                </div>
+                                <p class="text-muted text-center">No hay URLs procesadas aún.</p>
                                 {% endif %}
                             </div>
-
-                            <!-- Pestaña Logs -->
-                            <div class="tab-pane fade" id="logs" role="tabpanel">
-                                {% if recent_logs %}
+                            
+                            <!-- Archivos Encontrados -->
+                            <div class="tab-pane fade" id="files" role="tabpanel">
+                                {% if recent_files %}
                                 <div class="table-responsive">
                                     <table class="table table-sm">
                                         <thead>
                                             <tr>
-                                                <th width="100">Nivel</th>
-                                                <th>Mensaje</th>
-                                                <th width="130">Fecha</th>
+                                                <th>Archivo</th>
+                                                <th>Tipo</th>
+                                                <th>Tamaño</th>
+                                                <th>URL</th>
+                                                <th>Fecha</th>
+                                                <th>Acciones</th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {% for log in recent_logs %}
+                                            {% for file in recent_files %}
                                             <tr>
+                                                <td>{{ file.file_name|truncatechars:30 }}</td>
+                                                <td><span class="badge bg-info">{{ file.url_queue_item.url_type|upper }}</span></td>
+                                                <td>{{ file.url_queue_item.file_size|filesizeformat }}</td>
                                                 <td>
-                                                    <span class="badge
-                                                        {% if log.level == 'ERROR' or log.level == 'CRITICAL' %}bg-danger
-                                                        {% elif log.level == 'WARNING' %}bg-warning
-                                                        {% elif log.level == 'INFO' %}bg-info
-                                                        {% else %}bg-secondary{% endif %}">
-                                                        {{ log.level }}
-                                                    </span>
+                                                    <a href="{{ file.url_queue_item.url }}" target="_blank" class="text-truncate d-inline-block" style="max-width: 200px;">
+                                                        {{ file.url_queue_item.url }}
+                                                    </a>
                                                 </td>
-                                                <td class="log-level-{{ log.level }}">{{ log.message }}</td>
+                                                <td>{{ file.created_at|date:"d/m H:i" }}</td>
                                                 <td>
-                                                    <small class="text-muted">{{ log.created_at|date:"d/m H:i:s" }}</small>
+                                                    <button class="btn btn-sm btn-outline-primary" onclick="viewMetadata({{ file.id }})">
+                                                        <i class="bi bi-info-circle"></i>
+                                                    </button>
                                                 </td>
                                             </tr>
                                             {% endfor %}
                                         </tbody>
                                     </table>
                                 </div>
-
-                                <div class="text-center">
-                                    <a href="{% url 'crawler:session_logs' session.pk %}" class="btn btn-outline-primary">
-                                        Ver Todos los Logs
+                                <div class="text-center mt-3">
+                                    <a href="{% url 'crawler:session_results' session.pk %}" class="btn btn-sm btn-primary">
+                                        Ver todos los archivos
                                     </a>
                                 </div>
                                 {% else %}
-                                <div class="text-center text-muted py-4">
-                                    <i class="bi bi-journal-text" style="font-size: 3rem;"></i>
-                                    <p>No hay logs disponibles</p>
-                                </div>
+                                <p class="text-muted text-center">No se han encontrado archivos aún.</p>
                                 {% endif %}
+                            </div>
+                            
+                            <!-- Logs Recientes -->
+                            <div class="tab-pane fade" id="logs" role="tabpanel">
+                                {% if recent_logs %}
+                                <div style="max-height: 400px; overflow-y: auto;">
+                                    {% for log in recent_logs %}
+                                    <div class="log-entry {{ log.level }}">
+                                        <small class="text-muted">{{ log.created_at|date:"H:i:s" }}</small>
+                                        <span class="badge bg-{% if log.level == 'ERROR' %}danger{% elif log.level == 'WARNING' %}warning{% else %}info{% endif %}">
+                                            {{ log.level }}
+                                        </span>
+                                        {{ log.message }}
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                <div class="text-center mt-3">
+                                    <a href="{% url 'crawler:session_logs' session.pk %}" class="btn btn-sm btn-primary">
+                                        Ver todos los logs
+                                    </a>
+                                </div>
+                                {% else %}
+                                <p class="text-muted text-center">No hay logs disponibles.</p>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- Estadísticas -->
+                            <div class="tab-pane fade" id="stats" role="tabpanel">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h6>Estadísticas de URLs</h6>
+                                        <canvas id="urlStatsChart"></canvas>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h6>Información de Tiempo</h6>
+                                        <table class="table table-sm">
+                                            <tr>
+                                                <td>Iniciado:</td>
+                                                <td>
+                                                    {% if session.started_at %}
+                                                        {{ session.started_at|date:"d/m/Y H:i:s" }}
+                                                    {% else %}
+                                                        No iniciado
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td>Completado:</td>
+                                                <td>
+                                                    {% if session.completed_at %}
+                                                        {{ session.completed_at|date:"d/m/Y H:i:s" }}
+                                                    {% else %}
+                                                        En progreso
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td>Duración:</td>
+                                                <td>
+                                                    {% if session.started_at %}
+                                                        {% if session.completed_at %}
+                                                            {{ session.completed_at|timesince:session.started_at }}
+                                                        {% else %}
+                                                            {{ session.started_at|timesince }} (en progreso)
+                                                        {% endif %}
+                                                    {% else %}
+                                                        -
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td>Velocidad promedio:</td>
+                                                <td>
+                                                    {% if session.total_urls_processed > 0 and session.started_at %}
+                                                        ~{{ session.total_urls_processed|floatformat:1 }} URLs/min
+                                                    {% else %}
+                                                        -
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
-
-            <!-- Panel lateral -->
-            <div class="col-lg-4">
-                <!-- Información de la sesión -->
-                <div class="card">
-                    <div class="card-body">
-                        <h5 class="card-title">Información de la Sesión</h5>
-
-                        <ul class="list-unstyled">
-                            <li class="mb-2">
-                                <strong>Creado por:</strong> {{ session.user.username }}
-                            </li>
-                            <li class="mb-2">
-                                <strong>Fecha de creación:</strong><br>
-                                <small class="text-muted">{{ session.created_at|date:"d/m/Y H:i:s" }}</small>
-                            </li>
-                            {% if session.started_at %}
-                            <li class="mb-2">
-                                <strong>Fecha de inicio:</strong><br>
-                                <small class="text-muted">{{ session.started_at|date:"d/m/Y H:i:s" }}</small>
-                            </li>
-                            {% endif %}
-                            {% if session.completed_at %}
-                            <li class="mb-2">
-                                <strong>Fecha de finalización:</strong><br>
-                                <small class="text-muted">{{ session.completed_at|date:"d/m/Y H:i:s" }}</small>
-                            </li>
-                            {% endif %}
-                            <li class="mb-2">
-                                <strong>Prioridad:</strong> {{ session.get_priority_display }}
-                            </li>
-                        </ul>
-                    </div>
-                </div>
-
-                <!-- Estadísticas por estado de URL -->
-                <div class="card">
-                    <div class="card-body">
-                        <h5 class="card-title">Estado de URLs</h5>
-
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span class="text-warning">Pendientes</span>
-                            <span class="badge bg-warning">{{ url_stats.pending }}</span>
-                        </div>
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span class="text-primary">Procesando</span>
-                            <span class="badge bg-primary">{{ url_stats.processing }}</span>
-                        </div>
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span class="text-success">Completadas</span>
-                            <span class="badge bg-success">{{ url_stats.completed }}</span>
-                        </div>
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span class="text-danger">Fallidas</span>
-                            <span class="badge bg-danger">{{ url_stats.failed }}</span>
-                        </div>
-                        <div class="d-flex justify-content-between align-items-center">
-                            <span class="text-secondary">Omitidas</span>
-                            <span class="badge bg-secondary">{{ url_stats.skipped }}</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Estadísticas por tipo de archivo -->
-                {% if file_type_stats %}
-                <div class="card">
-                    <div class="card-body">
-                        <h5 class="card-title">Tipos de Archivo Encontrados</h5>
-
-                        {% for stat in file_type_stats %}
-                        <div class="d-flex justify-content-between align-items-center mb-2">
-                            <span class="text-capitalize">{{ stat.url_type|upper }}</span>
-                            <span class="badge bg-info">{{ stat.count }}</span>
-                        </div>
-                        {% endfor %}
-                    </div>
-                </div>
-                {% endif %}
             </div>
         </div>
     </section>
@@ -492,34 +520,105 @@
 {% endblock content %}
 
 {% block javascripts %}
-<script src="https://unpkg.com/htmx.org@1.9.10/dist/htmx.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-// Auto-refresh solo si la sesión está activa
-{% if session.is_active %}
-setInterval(function() {
-    htmx.trigger('#progress-container', 'load');
-}, 5000);
-{% endif %}
-
-// Confirmar acciones destructivas
-document.addEventListener('DOMContentLoaded', function() {
-    const deleteButton = document.querySelector('[href*="delete"]');
-    if (deleteButton) {
-        deleteButton.addEventListener('click', function(e) {
-            if (!confirm('¿Estás seguro de que quieres eliminar esta sesión? Esta acción no se puede deshacer.')) {
-                e.preventDefault();
-            }
-        });
+// Gráfico de progreso circular
+const progressCtx = document.getElementById('progressChart').getContext('2d');
+const progressChart = new Chart(progressCtx, {
+    type: 'doughnut',
+    data: {
+        datasets: [{
+            data: [{{ session.progress_percentage }}, {{ 100|add:"-"|add:session.progress_percentage }}],
+            backgroundColor: ['#4154f1', '#e0e0e0'],
+            borderWidth: 0
+        }]
+    },
+    options: {
+        cutout: '70%',
+        plugins: {
+            legend: { display: false },
+            tooltip: { enabled: false }
+        }
     }
 });
-</script>
 
-{% if session.status == 'running' %}
-<script>
-    setTimeout(function(){
-        window.location.reload();
-    }, 5000);
-</script>
+// Gráfico de tipos de archivo
+{% if file_type_stats %}
+const fileTypeCtx = document.getElementById('fileTypeChart').getContext('2d');
+const fileTypeChart = new Chart(fileTypeCtx, {
+    type: 'bar',
+    data: {
+        labels: [{% for stat in file_type_stats %}'{{ stat.url_type|upper }}'{% if not forloop.last %},{% endif %}{% endfor %}],
+        datasets: [{
+            label: 'Archivos',
+            data: [{% for stat in file_type_stats %}{{ stat.count }}{% if not forloop.last %},{% endif %}{% endfor %}],
+            backgroundColor: '#4154f1'
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    stepSize: 1
+                }
+            }
+        }
+    }
+});
 {% endif %}
 
+// Gráfico de estadísticas de URLs
+const urlStatsCtx = document.getElementById('urlStatsChart').getContext('2d');
+const urlStatsChart = new Chart(urlStatsCtx, {
+    type: 'pie',
+    data: {
+        labels: ['Pendientes', 'Procesando', 'Completadas', 'Fallidas', 'Omitidas'],
+        datasets: [{
+            data: [
+                {{ url_stats.pending }},
+                {{ url_stats.processing }},
+                {{ url_stats.completed }},
+                {{ url_stats.failed }},
+                {{ url_stats.skipped }}
+            ],
+            backgroundColor: ['#ffc107', '#0dcaf0', '#198754', '#dc3545', '#6c757d']
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: {
+                position: 'bottom'
+            }
+        }
+    }
+});
+
+// Funciones de acciones
+function pauseSession(sessionId) {
+    alert('Función de pausa en desarrollo');
+}
+
+function resumeSession(sessionId) {
+    alert('Función de reanudar en desarrollo');
+}
+
+function viewMetadata(fileId) {
+    // Aquí podrías abrir un modal con los metadatos
+    alert('Ver metadatos del archivo #' + fileId);
+}
+
+// Auto-refresh si la sesión está activa
+{% if session.status == 'running' %}
+setTimeout(function() {
+    location.reload();
+}, 10000); // Actualizar cada 10 segundos
+{% endif %}
+</script>
 {% endblock javascripts %}

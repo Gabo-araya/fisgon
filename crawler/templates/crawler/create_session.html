@@ -47,6 +47,29 @@
     padding: 1rem;
     margin-top: 1rem;
 }
+.config-card {
+    border: 1px solid #dee2e6;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+.config-card:hover {
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+.range-value {
+    font-weight: bold;
+    color: #4154f1;
+}
+.url-validator {
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+}
+.url-validator.valid {
+    color: #198754;
+}
+.url-validator.invalid {
+    color: #dc3545;
+}
 </style>
 {% endblock stylesheets %}
 
@@ -65,80 +88,80 @@
     </div>
 
     <section class="section">
-        <div class="row">
-            <div class="col-lg-8">
-                <div class="card">
-                    <div class="card-body">
-                        <h5 class="card-title">Configuración de Crawling</h5>
-
-                        <form method="post" id="create-session-form">
-                            {% csrf_token %}
+        <form method="post" id="create-session-form">
+            {% csrf_token %}
+            
+            <div class="row">
+                <!-- Formulario principal -->
+                <div class="col-lg-8">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">Configuración de Crawling</h5>
 
                             <!-- Información básica -->
                             <div class="form-section">
                                 <h6><i class="bi bi-info-circle"></i> Información Básica</h6>
+                                
+                                <div class="mb-3">
+                                    <label for="{{ form.name.id_for_label }}" class="form-label">
+                                        {{ form.name.label }} <span class="text-danger">*</span>
+                                    </label>
+                                    {{ form.name }}
+                                    {% if form.name.help_text %}
+                                    <div class="help-text">{{ form.name.help_text }}</div>
+                                    {% endif %}
+                                    {% if form.name.errors %}
+                                    <div class="text-danger">{{ form.name.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
 
-                                <div class="row">
-                                    <div class="col-12 mb-3">
-                                        <label for="{{ form.name.id_for_label }}" class="form-label">
-                                            {{ form.name.label }}
-                                        </label>
-                                        {{ form.name }}
-                                        {% if form.name.help_text %}
-                                        <div class="help-text">{{ form.name.help_text }}</div>
-                                        {% endif %}
-                                        {% if form.name.errors %}
-                                        <div class="text-danger small">{{ form.name.errors.0 }}</div>
-                                        {% endif %}
-                                    </div>
-
-                                    <div class="col-12 mb-3">
-                                        <label for="{{ form.target_url.id_for_label }}" class="form-label">
-                                            {{ form.target_url.label }}
-                                        </label>
-                                        {{ form.target_url }}
-                                        {% if form.target_url.help_text %}
-                                        <div class="help-text">{{ form.target_url.help_text }}</div>
-                                        {% endif %}
-                                        {% if form.target_url.errors %}
-                                        <div class="text-danger small">{{ form.target_url.errors.0 }}</div>
-                                        {% endif %}
-                                    </div>
+                                <div class="mb-3">
+                                    <label for="{{ form.target_url.id_for_label }}" class="form-label">
+                                        {{ form.target_url.label }} <span class="text-danger">*</span>
+                                    </label>
+                                    {{ form.target_url }}
+                                    <div class="url-validator" id="url-validator"></div>
+                                    {% if form.target_url.help_text %}
+                                    <div class="help-text">{{ form.target_url.help_text }}</div>
+                                    {% endif %}
+                                    {% if form.target_url.errors %}
+                                    <div class="text-danger">{{ form.target_url.errors.0 }}</div>
+                                    {% endif %}
                                 </div>
                             </div>
 
-                            <!-- Configuración de crawling -->
+                            <!-- Parámetros de crawling -->
                             <div class="form-section">
-                                <h6><i class="bi bi-gear"></i> Configuración de Crawling</h6>
-
+                                <h6><i class="bi bi-gear"></i> Parámetros de Crawling</h6>
+                                
                                 <div class="row">
-                                    <div class="col-md-6 mb-3">
+                                    <div class="col-md-4 mb-3">
                                         <label for="{{ form.max_depth.id_for_label }}" class="form-label">
                                             {{ form.max_depth.label }}
                                         </label>
                                         {{ form.max_depth }}
+                                        <div class="range-output">
+                                            Valor: <span class="range-value" id="depth-value">3</span> niveles
+                                        </div>
                                         {% if form.max_depth.help_text %}
                                         <div class="help-text">{{ form.max_depth.help_text }}</div>
                                         {% endif %}
-                                        {% if form.max_depth.errors %}
-                                        <div class="text-danger small">{{ form.max_depth.errors.0 }}</div>
-                                        {% endif %}
                                     </div>
 
-                                    <div class="col-md-6 mb-3">
+                                    <div class="col-md-4 mb-3">
                                         <label for="{{ form.rate_limit.id_for_label }}" class="form-label">
                                             {{ form.rate_limit.label }}
                                         </label>
                                         {{ form.rate_limit }}
+                                        <div class="range-output">
+                                            Valor: <span class="range-value" id="rate-value">1.0</span> req/seg
+                                        </div>
                                         {% if form.rate_limit.help_text %}
                                         <div class="help-text">{{ form.rate_limit.help_text }}</div>
                                         {% endif %}
-                                        {% if form.rate_limit.errors %}
-                                        <div class="text-danger small">{{ form.rate_limit.errors.0 }}</div>
-                                        {% endif %}
                                     </div>
 
-                                    <div class="col-md-6 mb-3">
+                                    <div class="col-md-4 mb-3">
                                         <label for="{{ form.max_pages.id_for_label }}" class="form-label">
                                             {{ form.max_pages.label }}
                                         </label>
@@ -146,21 +169,23 @@
                                         {% if form.max_pages.help_text %}
                                         <div class="help-text">{{ form.max_pages.help_text }}</div>
                                         {% endif %}
-                                        {% if form.max_pages.errors %}
-                                        <div class="text-danger small">{{ form.max_pages.errors.0 }}</div>
-                                        {% endif %}
                                     </div>
+                                </div>
 
+                                <div class="row">
                                     <div class="col-md-6 mb-3">
                                         <label for="{{ form.max_file_size.id_for_label }}" class="form-label">
                                             {{ form.max_file_size.label }}
                                         </label>
-                                        {{ form.max_file_size }}
-                                        <div class="help-text">
-                                            Tamaño en bytes (50MB = 52,428,800 bytes)
+                                        <div class="input-group">
+                                            {{ form.max_file_size }}
+                                            <span class="input-group-text">bytes</span>
                                         </div>
-                                        {% if form.max_file_size.errors %}
-                                        <div class="text-danger small">{{ form.max_file_size.errors.0 }}</div>
+                                        <div class="help-text">
+                                            Equivale a: <span id="file-size-human">50 MB</span>
+                                        </div>
+                                        {% if form.max_file_size.help_text %}
+                                        <div class="help-text">{{ form.max_file_size.help_text }}</div>
                                         {% endif %}
                                     </div>
                                 </div>
@@ -168,35 +193,44 @@
 
                             <!-- Tipos de archivo -->
                             <div class="form-section">
-                                <h6><i class="bi bi-files"></i> Tipos de Archivo a Buscar</h6>
-
-                                <div class="help-text mb-3">
-                                    Selecciona los tipos de archivo que deseas que el crawler busque y analice.
-                                </div>
-
-                                <div class="file-type-grid">
-                                    {% for choice in form.file_types %}
-                                    <div class="file-type-item">
-                                        {{ choice.tag }}
-                                        <label for="{{ choice.id_for_label }}" class="form-check-label ms-2">
-                                            {{ choice.choice_label }}
-                                        </label>
+                                <h6><i class="bi bi-file-earmark"></i> Tipos de Archivo a Buscar</h6>
+                                
+                                <div class="mb-3">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <label class="form-label mb-0">Selecciona los tipos de archivo:</label>
+                                        <div>
+                                            <button type="button" class="btn btn-sm btn-outline-primary" onclick="selectAllFileTypes()">
+                                                Seleccionar todos
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="deselectAllFileTypes()">
+                                                Limpiar
+                                            </button>
+                                        </div>
                                     </div>
-                                    {% endfor %}
+                                    
+                                    <div class="file-type-grid">
+                                        {% for checkbox in form.file_types %}
+                                        <div class="file-type-item">
+                                            {{ checkbox.tag }}
+                                            <label for="{{ checkbox.id_for_label }}" class="form-check-label ms-2 flex-grow-1">
+                                                {{ checkbox.choice_label }}
+                                            </label>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                    {% if form.file_types.help_text %}
+                                    <div class="help-text mt-2">{{ form.file_types.help_text }}</div>
+                                    {% endif %}
                                 </div>
-
-                                {% if form.file_types.errors %}
-                                <div class="text-danger small mt-2">{{ form.file_types.errors.0 }}</div>
-                                {% endif %}
                             </div>
 
                             <!-- Opciones avanzadas -->
                             <div class="form-section">
-                                <h6><i class="bi bi-sliders"></i> Opciones Avanzadas</h6>
-
+                                <h6><i class="bi bi-toggles"></i> Opciones Avanzadas</h6>
+                                
                                 <div class="row">
                                     <div class="col-md-4 mb-3">
-                                        <div class="form-check">
+                                        <div class="form-check form-switch">
                                             {{ form.respect_robots_txt }}
                                             <label class="form-check-label" for="{{ form.respect_robots_txt.id_for_label }}">
                                                 {{ form.respect_robots_txt.label }}
@@ -208,7 +242,7 @@
                                     </div>
 
                                     <div class="col-md-4 mb-3">
-                                        <div class="form-check">
+                                        <div class="form-check form-switch">
                                             {{ form.follow_redirects }}
                                             <label class="form-check-label" for="{{ form.follow_redirects.id_for_label }}">
                                                 {{ form.follow_redirects.label }}
@@ -220,7 +254,7 @@
                                     </div>
 
                                     <div class="col-md-4 mb-3">
-                                        <div class="form-check">
+                                        <div class="form-check form-switch">
                                             {{ form.extract_metadata }}
                                             <label class="form-check-label" for="{{ form.extract_metadata.id_for_label }}">
                                                 {{ form.extract_metadata.label }}
@@ -232,89 +266,124 @@
                                     </div>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                </div>
 
-                            <!-- Botones de acción -->
-                            <div class="text-center">
-                                <hr>
-                                <a href="{% url 'crawler:dashboard' %}" class="btn btn-outline-secondary me-2">
-                                    <i class="bi bi-arrow-left"></i> Cancelar
-                                </a>
-                                <button type="submit" class="btn btn-primary">
-                                    <i class="bi bi-plus-circle"></i> Crear Sesión de Crawling
+                <!-- Panel lateral -->
+                <div class="col-lg-4">
+                    <!-- Vista previa -->
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">Vista Previa</h5>
+                            <div class="form-preview">
+                                <h6 class="mb-3">Resumen de configuración:</h6>
+                                <dl class="row mb-0">
+                                    <dt class="col-6">Dominio:</dt>
+                                    <dd class="col-6" id="preview-domain">-</dd>
+                                    
+                                    <dt class="col-6">Profundidad:</dt>
+                                    <dd class="col-6" id="preview-depth">3 niveles</dd>
+                                    
+                                    <dt class="col-6">Velocidad:</dt>
+                                    <dd class="col-6" id="preview-rate">1.0 req/seg</dd>
+                                    
+                                    <dt class="col-6">Límite páginas:</dt>
+                                    <dd class="col-6" id="preview-pages">1000</dd>
+                                    
+                                    <dt class="col-6">Tamaño máx:</dt>
+                                    <dd class="col-6" id="preview-size">50 MB</dd>
+                                    
+                                    <dt class="col-6">Tipos archivo:</dt>
+                                    <dd class="col-6" id="preview-types">0 seleccionados</dd>
+                                </dl>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Acciones -->
+                    <div class="card mt-3">
+                        <div class="card-body">
+                            <h5 class="card-title">Acciones</h5>
+                            
+                            <div class="d-grid gap-2">
+                                <button type="submit" name="action" value="save_and_start" class="btn btn-primary">
+                                    <i class="bi bi-rocket"></i> Guardar e Iniciar Crawling
                                 </button>
+                                
+                                <button type="submit" name="action" value="save" class="btn btn-success">
+                                    <i class="bi bi-save"></i> Solo Guardar
+                                </button>
+                                
+                                <a href="{% url 'crawler:session_list' %}" class="btn btn-outline-secondary">
+                                    <i class="bi bi-x-circle"></i> Cancelar
+                                </a>
                             </div>
-                        </form>
+                        </div>
+                    </div>
+
+                    <!-- Ayuda -->
+                    <div class="card mt-3">
+                        <div class="card-body">
+                            <h5 class="card-title">Ayuda Rápida</h5>
+                            
+                            <div class="accordion accordion-flush" id="helpAccordion">
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header">
+                                        <button class="accordion-button collapsed" type="button" 
+                                                data-bs-toggle="collapse" data-bs-target="#help1">
+                                            ¿Qué es la profundidad?
+                                        </button>
+                                    </h2>
+                                    <div id="help1" class="accordion-collapse collapse" 
+                                         data-bs-parent="#helpAccordion">
+                                        <div class="accordion-body">
+                                            La profundidad determina cuántos niveles de enlaces seguirá el crawler 
+                                            desde la URL inicial. Por ejemplo, con profundidad 2, explorará la página 
+                                            inicial y todas las páginas enlazadas desde ella.
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header">
+                                        <button class="accordion-button collapsed" type="button" 
+                                                data-bs-toggle="collapse" data-bs-target="#help2">
+                                            ¿Qué es rate limiting?
+                                        </button>
+                                    </h2>
+                                    <div id="help2" class="accordion-collapse collapse" 
+                                         data-bs-parent="#helpAccordion">
+                                        <div class="accordion-body">
+                                            El límite de velocidad controla cuántas solicitudes por segundo hace el 
+                                            crawler. Un valor bajo (0.5-1.0) es más respetuoso con el servidor, 
+                                            mientras que valores altos pueden ser más rápidos pero más agresivos.
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header">
+                                        <button class="accordion-button collapsed" type="button" 
+                                                data-bs-toggle="collapse" data-bs-target="#help3">
+                                            ¿Qué es robots.txt?
+                                        </button>
+                                    </h2>
+                                    <div id="help3" class="accordion-collapse collapse" 
+                                         data-bs-parent="#helpAccordion">
+                                        <div class="accordion-body">
+                                            El archivo robots.txt contiene reglas que los sitios web usan para 
+                                            indicar qué partes pueden ser rastreadas. Es una buena práctica 
+                                            respetarlo para cumplir con las políticas del sitio.
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
-
-            <!-- Panel lateral con información -->
-            <div class="col-lg-4">
-                <div class="card">
-                    <div class="card-body">
-                        <h5 class="card-title">Información</h5>
-
-                        <div class="alert alert-info">
-                            <i class="bi bi-info-circle"></i>
-                            <strong>Nuevo en crawling?</strong><br>
-                            Te recomendamos empezar con configuraciones básicas: profundidad 2-3, velocidad 1 req/seg.
-                        </div>
-
-                        <h6>Consejos importantes:</h6>
-                        <ul class="list-unstyled">
-                            <li class="mb-2">
-                                <i class="bi bi-check-circle text-success"></i>
-                                <strong>Velocidad:</strong> Usa 0.5-1 req/seg para sitios pequeños
-                            </li>
-                            <li class="mb-2">
-                                <i class="bi bi-check-circle text-success"></i>
-                                <strong>Profundidad:</strong> Nivel 3 es suficiente para la mayoría de sitios
-                            </li>
-                            <li class="mb-2">
-                                <i class="bi bi-check-circle text-success"></i>
-                                <strong>Robots.txt:</strong> Mantener habilitado por respeto
-                            </li>
-                            <li class="mb-2">
-                                <i class="bi bi-check-circle text-success"></i>
-                                <strong>Archivos:</strong> Selecciona solo los tipos que necesites
-                            </li>
-                        </ul>
-
-                        <div class="alert alert-warning">
-                            <i class="bi bi-exclamation-triangle"></i>
-                            <strong>Importante:</strong> Respeta los términos de servicio del sitio web objetivo.
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Vista previa de configuración -->
-                <div class="card">
-                    <div class="card-body">
-                        <h5 class="card-title">Vista Previa</h5>
-                        <small class="text-muted">Configuración actual:</small>
-
-                        <div class="form-preview" id="config-preview">
-                            <div class="mb-2">
-                                <strong>Dominio:</strong> <span id="preview-domain">-</span>
-                            </div>
-                            <div class="mb-2">
-                                <strong>Profundidad:</strong> <span id="preview-depth">3</span> niveles
-                            </div>
-                            <div class="mb-2">
-                                <strong>Velocidad:</strong> <span id="preview-rate">1.0</span> req/seg
-                            </div>
-                            <div class="mb-2">
-                                <strong>Máx. páginas:</strong> <span id="preview-pages">1000</span>
-                            </div>
-                            <div>
-                                <strong>Tipos de archivo:</strong><br>
-                                <span id="preview-filetypes" class="small text-muted">Ninguno seleccionado</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+        </form>
     </section>
 </main>
 
@@ -322,125 +391,100 @@
 
 {% block javascripts %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Elementos del formulario
-    const targetUrlInput = document.getElementById('id_target_url');
-    const maxDepthInput = document.getElementById('id_max_depth');
-    const rateLimitInput = document.getElementById('id_rate_limit');
-    const maxPagesInput = document.getElementById('id_max_pages');
-    const fileTypeInputs = document.querySelectorAll('input[name="file_types"]');
-
-    // Elementos de vista previa
+// Validación de URL en tiempo real
+document.getElementById('{{ form.target_url.id_for_label }}').addEventListener('input', function(e) {
+    const url = e.target.value;
+    const validator = document.getElementById('url-validator');
     const previewDomain = document.getElementById('preview-domain');
-    const previewDepth = document.getElementById('preview-depth');
-    const previewRate = document.getElementById('preview-rate');
-    const previewPages = document.getElementById('preview-pages');
-    const previewFiletypes = document.getElementById('preview-filetypes');
-
-    // Función para actualizar vista previa
-    function updatePreview() {
-        // Actualizar dominio
-        if (targetUrlInput.value) {
-            try {
-                const url = new URL(targetUrlInput.value);
-                previewDomain.textContent = url.hostname;
-            } catch (e) {
-                previewDomain.textContent = 'URL inválida';
-            }
-        } else {
+    
+    if (url) {
+        try {
+            const urlObj = new URL(url);
+            validator.textContent = '✓ URL válida';
+            validator.className = 'url-validator valid';
+            previewDomain.textContent = urlObj.hostname;
+        } catch (error) {
+            validator.textContent = '✗ URL no válida';
+            validator.className = 'url-validator invalid';
             previewDomain.textContent = '-';
         }
-
-        // Actualizar otros campos
-        previewDepth.textContent = maxDepthInput.value || '3';
-        previewRate.textContent = rateLimitInput.value || '1.0';
-        previewPages.textContent = maxPagesInput.value || '1000';
-
-        // Actualizar tipos de archivo seleccionados
-        const selectedTypes = Array.from(fileTypeInputs)
-            .filter(input => input.checked)
-            .map(input => input.nextElementSibling.textContent.trim());
-
-        if (selectedTypes.length > 0) {
-            previewFiletypes.innerHTML = selectedTypes.map(type =>
-                `<span class="badge bg-secondary me-1">${type}</span>`
-            ).join('');
-        } else {
-            previewFiletypes.innerHTML = '<span class="text-muted">Ninguno seleccionado</span>';
-        }
+    } else {
+        validator.textContent = '';
+        previewDomain.textContent = '-';
     }
-
-    // Event listeners para actualizar vista previa
-    targetUrlInput.addEventListener('input', updatePreview);
-    maxDepthInput.addEventListener('input', updatePreview);
-    rateLimitInput.addEventListener('input', updatePreview);
-    maxPagesInput.addEventListener('input', updatePreview);
-
-    fileTypeInputs.forEach(input => {
-        input.addEventListener('change', updatePreview);
-    });
-
-    // Validación en tiempo real del formulario
-    targetUrlInput.addEventListener('blur', function() {
-        const url = this.value;
-        if (url && !url.startsWith('http://') && !url.startsWith('https://')) {
-            this.setCustomValidity('La URL debe comenzar con http:// o https://');
-        } else {
-            this.setCustomValidity('');
-        }
-    });
-
-    // Validación de profundidad
-    maxDepthInput.addEventListener('input', function() {
-        const depth = parseInt(this.value);
-        if (depth < 1 || depth > 10) {
-            this.setCustomValidity('La profundidad debe estar entre 1 y 10');
-        } else {
-            this.setCustomValidity('');
-        }
-    });
-
-    // Validación de velocidad
-    rateLimitInput.addEventListener('input', function() {
-        const rate = parseFloat(this.value);
-        if (rate <= 0 || rate > 10) {
-            this.setCustomValidity('La velocidad debe estar entre 0.1 y 10.0');
-        } else {
-            this.setCustomValidity('');
-        }
-    });
-
-    // Conversión automática de tamaño de archivo
-    const maxFileSizeInput = document.getElementById('id_max_file_size');
-    const fileSizeHelp = maxFileSizeInput.nextElementSibling;
-
-    maxFileSizeInput.addEventListener('input', function() {
-        const bytes = parseInt(this.value);
-        if (bytes) {
-            const mb = (bytes / (1024 * 1024)).toFixed(1);
-            fileSizeHelp.textContent = `Tamaño en bytes (${mb} MB)`;
-        }
-    });
-
-    // Actualizar vista previa inicial
-    updatePreview();
-
-    // Confirmación antes de enviar
-    document.getElementById('create-session-form').addEventListener('submit', function(e) {
-        const selectedTypes = Array.from(fileTypeInputs).filter(input => input.checked);
-
-        if (selectedTypes.length === 0) {
-            if (!confirm('No has seleccionado tipos de archivo específicos. ¿Deseas continuar? (Solo se analizarán páginas HTML)')) {
-                e.preventDefault();
-                return false;
-            }
-        }
-
-        // Mostrar indicador de carga
-        const submitBtn = this.querySelector('button[type="submit"]');
-        submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Creando sesión...';
-        submitBtn.disabled = true;
-    });
 });
+
+// Actualizar valores de range en tiempo real
+document.getElementById('{{ form.max_depth.id_for_label }}').addEventListener('input', function(e) {
+    document.getElementById('depth-value').textContent = e.target.value;
+    document.getElementById('preview-depth').textContent = e.target.value + ' niveles';
+});
+
+document.getElementById('{{ form.rate_limit.id_for_label }}').addEventListener('input', function(e) {
+    document.getElementById('rate-value').textContent = e.target.value;
+    document.getElementById('preview-rate').textContent = e.target.value + ' req/seg';
+});
+
+document.getElementById('{{ form.max_pages.id_for_label }}').addEventListener('input', function(e) {
+    document.getElementById('preview-pages').textContent = e.target.value;
+});
+
+// Convertir tamaño de archivo a formato legible
+document.getElementById('{{ form.max_file_size.id_for_label }}').addEventListener('input', function(e) {
+    const bytes = parseInt(e.target.value);
+    let size;
+    
+    if (bytes >= 1048576) {
+        size = (bytes / 1048576).toFixed(1) + ' MB';
+    } else if (bytes >= 1024) {
+        size = (bytes / 1024).toFixed(1) + ' KB';
+    } else {
+        size = bytes + ' bytes';
+    }
+    
+    document.getElementById('file-size-human').textContent = size;
+    document.getElementById('preview-size').textContent = size;
+});
+
+// Contar tipos de archivo seleccionados
+function updateFileTypeCount() {
+    const checkboxes = document.querySelectorAll('input[name="file_types"]:checked');
+    document.getElementById('preview-types').textContent = checkboxes.length + ' seleccionados';
+}
+
+document.querySelectorAll('input[name="file_types"]').forEach(checkbox => {
+    checkbox.addEventListener('change', updateFileTypeCount);
+});
+
+// Seleccionar/deseleccionar todos los tipos de archivo
+function selectAllFileTypes() {
+    document.querySelectorAll('input[name="file_types"]').forEach(checkbox => {
+        checkbox.checked = true;
+    });
+    updateFileTypeCount();
+}
+
+function deselectAllFileTypes() {
+    document.querySelectorAll('input[name="file_types"]').forEach(checkbox => {
+        checkbox.checked = false;
+    });
+    updateFileTypeCount();
+}
+
+// Inicializar contadores
+updateFileTypeCount();
+
+// Validación del formulario antes de enviar
+document.getElementById('create-session-form').addEventListener('submit', function(e) {
+    const fileTypes = document.querySelectorAll('input[name="file_types"]:checked');
+    if (fileTypes.length === 0) {
+        e.preventDefault();
+        alert('Por favor selecciona al menos un tipo de archivo para buscar.');
+        return false;
+    }
+});
+
+// Inicializar valores por defecto
+document.getElementById('{{ form.max_file_size.id_for_label }}').dispatchEvent(new Event('input'));
 </script>
 {% endblock javascripts %}

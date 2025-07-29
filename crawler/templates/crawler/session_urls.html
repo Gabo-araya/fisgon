@@ -1,0 +1,973 @@
+{% extends "panel/base_admin.html" %}
+{% load static %}
+{% block title %} URLs Procesadas - {{ session.name }} {% endblock title %}
+
+{% block stylesheets %}
+<style>
+.url-tree {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 0.9rem;
+}
+.tree-node {
+    margin-left: 1.5rem;
+    position: relative;
+}
+.tree-node::before {
+    content: '';
+    position: absolute;
+    left: -1rem;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background-color: #dee2e6;
+}
+.tree-toggle {
+    cursor: pointer;
+    user-select: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.tree-toggle:hover {
+    color: #0d6efd;
+}
+.tree-icon {
+    transition: transform 0.2s;
+}
+.tree-icon.collapsed {
+    transform: rotate(-90deg);
+}
+.url-item {
+    padding: 0.5rem;
+    margin-bottom: 0.25rem;
+    border-radius: 0.375rem;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.url-item:hover {
+    background-color: #f8f9fa;
+}
+.url-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.875rem;
+}
+.url-status.completed { color: #198754; }
+.url-status.pending { color: #ffc107; }
+.url-status.processing { color: #0dcaf0; }
+.url-status.failed { color: #dc3545; }
+.url-status.skipped { color: #6c757d; }
+
+.depth-indicator {
+    display: inline-block;
+    width: 30px;
+    height: 30px;
+    line-height: 30px;
+    text-align: center;
+    border-radius: 50%;
+    background-color: #e9ecef;
+    font-weight: bold;
+    font-size: 0.875rem;
+    margin-right: 0.5rem;
+}
+.depth-0 { background-color: #0d6efd; color: white; }
+.depth-1 { background-color: #6c757d; color: white; }
+.depth-2 { background-color: #adb5bd; }
+.depth-3 { background-color: #dee2e6; }
+.depth-4 { background-color: #f8f9fa; }
+
+.url-details {
+    font-size: 0.875rem;
+    color: #6c757d;
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+.url-path {
+    max-width: 600px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+.stat-box {
+    background-color: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: 0.5rem;
+    text-align: center;
+}
+.stat-box h3 {
+    margin-bottom: 0.5rem;
+    color: #495057;
+}
+.filter-toolbar {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    align-items: center;
+    padding: 1rem;
+    background-color: #f8f9fa;
+    border-radius: 0.5rem;
+}
+.domain-tree {
+    max-height: 600px;
+    overflow-y: auto;
+    padding: 1rem;
+    background-color: #f8f9fa;
+    border-radius: 0.5rem;
+}
+.url-graph {
+    min-height: 400px;
+    background-color: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 0.5rem;
+}
+.legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-right: 1rem;
+}
+.legend-color {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+}
+.http-status {
+    font-family: monospace;
+    font-weight: bold;
+}
+.http-status.success { color: #198754; }
+.http-status.redirect { color: #0dcaf0; }
+.http-status.client-error { color: #ffc107; }
+.http-status.server-error { color: #dc3545; }
+
+.response-time {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+.response-time.fast { color: #198754; }
+.response-time.medium { color: #ffc107; }
+.response-time.slow { color: #dc3545; }
+
+.bulk-actions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+.url-checkbox {
+    margin-right: 0.5rem;
+}
+</style>
+{% endblock stylesheets %}
+
+{% block content %}
+
+<main id="main" class="main">
+    <div class="pagetitle">
+        <h1><i class="bi bi-link-45deg"></i> URLs Procesadas</h1>
+        <nav>
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'index' %}">Inicio</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'crawler:dashboard' %}">Crawler</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'crawler:session_list' %}">Sesiones</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'crawler:session_detail' session.pk %}">{{ session.name|truncatechars:20 }}</a></li>
+                <li class="breadcrumb-item active">URLs</li>
+            </ol>
+        </nav>
+    </div>
+
+    <section class="section">
+        <!-- Información de la sesión -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mt-3">
+                            <div>
+                                <h5 class="card-title mb-1">{{ session.name }}</h5>
+                                <p class="text-muted mb-0">
+                                    <i class="bi bi-globe"></i> {{ session.target_domain }}
+                                    | <i class="bi bi-calendar"></i> {{ session.created_at|date:"d/m/Y H:i" }}
+                                    | <i class="bi bi-link-45deg"></i> {{ total_urls }} URLs totales
+                                </p>
+                            </div>
+                            <div>
+                                <div class="btn-group">
+                                    <button type="button" class="btn btn-success dropdown-toggle" data-bs-toggle="dropdown">
+                                        <i class="bi bi-download"></i> Exportar URLs
+                                    </button>
+                                    <ul class="dropdown-menu">
+                                        <li><a class="dropdown-item" href="#" onclick="exportURLs('csv')">
+                                            <i class="bi bi-file-spreadsheet"></i> CSV
+                                        </a></li>
+                                        <li><a class="dropdown-item" href="#" onclick="exportURLs('txt')">
+                                            <i class="bi bi-file-text"></i> Lista de texto
+                                        </a></li>
+                                        <li><a class="dropdown-item" href="#" onclick="exportURLs('sitemap')">
+                                            <i class="bi bi-diagram-3"></i> Sitemap XML
+                                        </a></li>
+                                    </ul>
+                                </div>
+                                <a href="{% url 'crawler:session_detail' session.pk %}" class="btn btn-secondary">
+                                    <i class="bi bi-arrow-left"></i> Volver
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Estadísticas -->
+        <div class="row mt-3">
+            <div class="col-12">
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <i class="bi bi-check-circle display-4 text-success"></i>
+                        <h3>{{ url_stats.completed }}</h3>
+                        <p class="mb-0">Completadas</p>
+                    </div>
+                    <div class="stat-box">
+                        <i class="bi bi-hourglass-split display-4 text-info"></i>
+                        <h3>{{ url_stats.processing }}</h3>
+                        <p class="mb-0">Procesando</p>
+                    </div>
+                    <div class="stat-box">
+                        <i class="bi bi-clock display-4 text-warning"></i>
+                        <h3>{{ url_stats.pending }}</h3>
+                        <p class="mb-0">Pendientes</p>
+                    </div>
+                    <div class="stat-box">
+                        <i class="bi bi-x-circle display-4 text-danger"></i>
+                        <h3>{{ url_stats.failed }}</h3>
+                        <p class="mb-0">Fallidas</p>
+                    </div>
+                    <div class="stat-box">
+                        <i class="bi bi-skip-forward display-4 text-secondary"></i>
+                        <h3>{{ url_stats.skipped }}</h3>
+                        <p class="mb-0">Omitidas</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filtros y controles -->
+        <div class="row mt-3">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Filtros y Controles</h5>
+                        
+                        <div class="filter-toolbar">
+                            <!-- Búsqueda -->
+                            <div class="flex-grow-1">
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                                    <input type="text" class="form-control" id="urlSearch" 
+                                           placeholder="Buscar URLs...">
+                                </div>
+                            </div>
+                            
+                            <!-- Filtro por estado -->
+                            <select class="form-select" id="statusFilter" style="width: auto;">
+                                <option value="">Todos los estados</option>
+                                <option value="completed">Completadas</option>
+                                <option value="processing">Procesando</option>
+                                <option value="pending">Pendientes</option>
+                                <option value="failed">Fallidas</option>
+                                <option value="skipped">Omitidas</option>
+                            </select>
+                            
+                            <!-- Filtro por profundidad -->
+                            <select class="form-select" id="depthFilter" style="width: auto;">
+                                <option value="">Todas las profundidades</option>
+                                <option value="0">Nivel 0 (Raíz)</option>
+                                <option value="1">Nivel 1</option>
+                                <option value="2">Nivel 2</option>
+                                <option value="3">Nivel 3</option>
+                                <option value="4">Nivel 4+</option>
+                            </select>
+                            
+                            <!-- Filtro por tipo -->
+                            <select class="form-select" id="typeFilter" style="width: auto;">
+                                <option value="">Todos los tipos</option>
+                                <option value="html">HTML</option>
+                                <option value="pdf">PDF</option>
+                                <option value="doc">DOC/DOCX</option>
+                                <option value="xls">XLS/XLSX</option>
+                                <option value="image">Imágenes</option>
+                                <option value="other">Otros</option>
+                            </select>
+                            
+                            <!-- Vista -->
+                            <div class="btn-group" role="group">
+                                <button type="button" class="btn btn-outline-primary active" data-view="list">
+                                    <i class="bi bi-list-ul"></i> Lista
+                                </button>
+                                <button type="button" class="btn btn-outline-primary" data-view="tree">
+                                    <i class="bi bi-diagram-3"></i> Árbol
+                                </button>
+                                <button type="button" class="btn btn-outline-primary" data-view="graph">
+                                    <i class="bi bi-share"></i> Grafo
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Acciones en lote -->
+                        <div class="bulk-actions mt-3" style="display: none;">
+                            <input type="checkbox" class="form-check-input" id="selectAll">
+                            <label for="selectAll">Seleccionar todo</label>
+                            <span class="text-muted mx-3">|</span>
+                            <span id="selectedCount">0 seleccionados</span>
+                            <button class="btn btn-sm btn-primary ms-3" onclick="retrySelected()">
+                                <i class="bi bi-arrow-clockwise"></i> Reintentar
+                            </button>
+                            <button class="btn btn-sm btn-danger" onclick="skipSelected()">
+                                <i class="bi bi-x-circle"></i> Omitir
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Vista de URLs -->
+        <div class="row mt-3">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <!-- Vista Lista (por defecto) -->
+                        <div id="listView" class="view-container">
+                            <h5 class="card-title">Lista de URLs</h5>
+                            
+                            <div class="table-responsive">
+                                <table class="table table-hover" id="urlsTable">
+                                    <thead>
+                                        <tr>
+                                            <th width="30">
+                                                <input type="checkbox" class="form-check-input" id="selectAllTable">
+                                            </th>
+                                            <th>URL</th>
+                                            <th width="100">Estado</th>
+                                            <th width="80">Tipo</th>
+                                            <th width="80">Prof.</th>
+                                            <th width="100">HTTP</th>
+                                            <th width="100">Tiempo</th>
+                                            <th width="120">Procesado</th>
+                                            <th width="100">Acciones</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for url in urls %}
+                                        <tr data-url-id="{{ url.id }}" 
+                                            data-status="{{ url.status }}"
+                                            data-depth="{{ url.depth }}"
+                                            data-type="{{ url.url_type }}">
+                                            <td>
+                                                <input type="checkbox" class="form-check-input url-checkbox" 
+                                                       value="{{ url.id }}">
+                                            </td>
+                                            <td>
+                                                <div class="url-path" title="{{ url.url }}">
+                                                    <a href="{{ url.url }}" target="_blank">
+                                                        {{ url.url }}
+                                                    </a>
+                                                </div>
+                                                {% if url.parent_url %}
+                                                <small class="text-muted">
+                                                    Desde: {{ url.parent_url|truncatechars:50 }}
+                                                </small>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <span class="url-status {{ url.status }}">
+                                                    {% if url.status == 'completed' %}
+                                                        <i class="bi bi-check-circle"></i> Completada
+                                                    {% elif url.status == 'processing' %}
+                                                        <i class="bi bi-arrow-repeat"></i> Procesando
+                                                    {% elif url.status == 'pending' %}
+                                                        <i class="bi bi-clock"></i> Pendiente
+                                                    {% elif url.status == 'failed' %}
+                                                        <i class="bi bi-x-circle"></i> Fallida
+                                                    {% elif url.status == 'skipped' %}
+                                                        <i class="bi bi-skip-forward"></i> Omitida
+                                                    {% endif %}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-secondary">{{ url.url_type|upper }}</span>
+                                            </td>
+                                            <td>
+                                                <span class="depth-indicator depth-{{ url.depth }}">
+                                                    {{ url.depth }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                {% if url.http_status_code %}
+                                                    <span class="http-status {% if url.http_status_code >= 200 and url.http_status_code < 300 %}success{% elif url.http_status_code >= 300 and url.http_status_code < 400 %}redirect{% elif url.http_status_code >= 400 and url.http_status_code < 500 %}client-error{% else %}server-error{% endif %}">
+                                                        {{ url.http_status_code }}
+                                                    </span>
+                                                {% else %}
+                                                    -
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if url.response_time %}
+                                                    <span class="response-time {% if url.response_time < 1 %}fast{% elif url.response_time < 3 %}medium{% else %}slow{% endif %}">
+                                                        <i class="bi bi-speedometer2"></i>
+                                                        {{ url.response_time|floatformat:2 }}s
+                                                    </span>
+                                                {% else %}
+                                                    -
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if url.processed_at %}
+                                                    <small>{{ url.processed_at|date:"d/m H:i:s" }}</small>
+                                                {% else %}
+                                                    -
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <div class="btn-group btn-group-sm">
+                                                    {% if url.status == 'failed' %}
+                                                    <button class="btn btn-outline-primary" onclick="retryURL({{ url.id }})" 
+                                                            title="Reintentar">
+                                                        <i class="bi bi-arrow-clockwise"></i>
+                                                    </button>
+                                                    {% endif %}
+                                                    {% if url.error_message %}
+                                                    <button class="btn btn-outline-danger" onclick="showError({{ url.id }}, '{{ url.error_message|escapejs }}')" 
+                                                            title="Ver error">
+                                                        <i class="bi bi-exclamation-triangle"></i>
+                                                    </button>
+                                                    {% endif %}
+                                                    {% if url.has_metadata %}
+                                                    <button class="btn btn-outline-info" onclick="viewMetadata({{ url.id }})" 
+                                                            title="Ver metadatos">
+                                                        <i class="bi bi-info-circle"></i>
+                                                    </button>
+                                                    {% endif %}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr>
+                                            <td colspan="9" class="text-center py-5">
+                                                <i class="bi bi-link-45deg display-1 text-muted"></i>
+                                                <p class="mt-3 text-muted">No se han procesado URLs aún.</p>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Vista Árbol (oculta por defecto) -->
+                        <div id="treeView" class="view-container d-none">
+                            <h5 class="card-title">Vista de Árbol de URLs</h5>
+                            
+                            <div class="domain-tree">
+                                <div class="url-tree">
+                                    <!-- Se generará dinámicamente con JavaScript -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Vista Grafo (oculta por defecto) -->
+                        <div id="graphView" class="view-container d-none">
+                            <h5 class="card-title">Grafo de Enlaces</h5>
+                            
+                            <div class="mb-3">
+                                <div class="legend">
+                                    <span class="legend-item">
+                                        <span class="legend-color" style="background-color: #198754;"></span>
+                                        Completadas
+                                    </span>
+                                    <span class="legend-item">
+                                        <span class="legend-color" style="background-color: #0dcaf0;"></span>
+                                        Procesando
+                                    </span>
+                                    <span class="legend-item">
+                                        <span class="legend-color" style="background-color: #ffc107;"></span>
+                                        Pendientes
+                                    </span>
+                                    <span class="legend-item">
+                                        <span class="legend-color" style="background-color: #dc3545;"></span>
+                                        Fallidas
+                                    </span>
+                                </div>
+                            </div>
+                            
+                            <div id="urlGraph" class="url-graph">
+                                <!-- El grafo se renderizará aquí con D3.js o similar -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Paginación -->
+        {% if is_paginated %}
+        <div class="row mt-4">
+            <div class="col-12">
+                <nav aria-label="Navegación de URLs">
+                    <ul class="pagination justify-content-center">
+                        {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page=1">Primera</a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}">
+                                <i class="bi bi-chevron-left"></i>
+                            </a>
+                        </li>
+                        {% endif %}
+                        
+                        <li class="page-item active">
+                            <span class="page-link">
+                                Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
+                            </span>
+                        </li>
+                        
+                        {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}">
+                                <i class="bi bi-chevron-right"></i>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">Última</a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            </div>
+        </div>
+        {% endif %}
+    </section>
+</main>
+
+<!-- Modal para errores -->
+<div class="modal fade" id="errorModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Detalles del Error</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <pre id="errorContent" style="white-space: pre-wrap;"></pre>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock content %}
+
+{% block javascripts %}
+<script>
+// Variables globales
+let selectedURLs = new Set();
+let currentView = 'list';
+
+// Cambio de vista
+document.querySelectorAll('[data-view]').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const view = this.dataset.view;
+        changeView(view);
+    });
+});
+
+function changeView(view) {
+    // Actualizar botones
+    document.querySelectorAll('[data-view]').forEach(b => b.classList.remove('active'));
+    document.querySelector(`[data-view="${view}"]`).classList.add('active');
+    
+    // Ocultar todas las vistas
+    document.querySelectorAll('.view-container').forEach(v => v.classList.add('d-none'));
+    
+    // Mostrar vista seleccionada
+    document.getElementById(`${view}View`).classList.remove('d-none');
+    
+    // Cargar datos específicos de la vista
+    if (view === 'tree') {
+        buildTreeView();
+    } else if (view === 'graph') {
+        buildGraphView();
+    }
+    
+    currentView = view;
+}
+
+// Filtros
+document.getElementById('urlSearch').addEventListener('input', filterURLs);
+document.getElementById('statusFilter').addEventListener('change', filterURLs);
+document.getElementById('depthFilter').addEventListener('change', filterURLs);
+document.getElementById('typeFilter').addEventListener('change', filterURLs);
+
+function filterURLs() {
+    const search = document.getElementById('urlSearch').value.toLowerCase();
+    const status = document.getElementById('statusFilter').value;
+    const depth = document.getElementById('depthFilter').value;
+    const type = document.getElementById('typeFilter').value;
+    
+    const rows = document.querySelectorAll('#urlsTable tbody tr[data-url-id]');
+    
+    rows.forEach(row => {
+        let show = true;
+        
+        // Filtro de búsqueda
+        if (search && !row.textContent.toLowerCase().includes(search)) {
+            show = false;
+        }
+        
+        // Filtro de estado
+        if (status && row.dataset.status !== status) {
+            show = false;
+        }
+        
+        // Filtro de profundidad
+        if (depth) {
+            const rowDepth = parseInt(row.dataset.depth);
+            if (depth === '4' && rowDepth < 4) {
+                show = false;
+            } else if (depth !== '4' && rowDepth !== parseInt(depth)) {
+                show = false;
+            }
+        }
+        
+        // Filtro de tipo
+        if (type) {
+            const rowType = row.dataset.type;
+            if (type === 'image' && !['jpg', 'jpeg', 'png', 'gif', 'tiff'].includes(rowType)) {
+                show = false;
+            } else if (type !== 'image' && type !== 'other' && !rowType.includes(type)) {
+                show = false;
+            }
+        }
+        
+        row.style.display = show ? '' : 'none';
+    });
+}
+
+// Selección de URLs
+document.getElementById('selectAll').addEventListener('change', function() {
+    const checkboxes = document.querySelectorAll('.url-checkbox');
+    checkboxes.forEach(cb => {
+        cb.checked = this.checked;
+        if (this.checked) {
+            selectedURLs.add(cb.value);
+        } else {
+            selectedURLs.delete(cb.value);
+        }
+    });
+    updateSelectedCount();
+});
+
+document.getElementById('selectAllTable').addEventListener('change', function() {
+    document.getElementById('selectAll').checked = this.checked;
+    document.getElementById('selectAll').dispatchEvent(new Event('change'));
+});
+
+document.querySelectorAll('.url-checkbox').forEach(cb => {
+    cb.addEventListener('change', function() {
+        if (this.checked) {
+            selectedURLs.add(this.value);
+        } else {
+            selectedURLs.delete(this.value);
+        }
+        updateSelectedCount();
+    });
+});
+
+function updateSelectedCount() {
+    document.getElementById('selectedCount').textContent = `${selectedURLs.size} seleccionados`;
+    document.querySelector('.bulk-actions').style.display = selectedURLs.size > 0 ? 'flex' : 'none';
+}
+
+// Acciones
+function retryURL(urlId) {
+    if (confirm('¿Reintentar procesamiento de esta URL?')) {
+        // Implementar llamada AJAX
+        console.log('Reintentando URL:', urlId);
+    }
+}
+
+function retrySelected() {
+    if (confirm(`¿Reintentar procesamiento de ${selectedURLs.size} URLs?`)) {
+        // Implementar llamada AJAX
+        console.log('Reintentando URLs:', Array.from(selectedURLs));
+    }
+}
+
+function skipSelected() {
+    if (confirm(`¿Omitir ${selectedURLs.size} URLs?`)) {
+        // Implementar llamada AJAX
+        console.log('Omitiendo URLs:', Array.from(selectedURLs));
+    }
+}
+
+function showError(urlId, errorMessage) {
+    document.getElementById('errorContent').textContent = errorMessage;
+    const modal = new bootstrap.Modal(document.getElementById('errorModal'));
+    modal.show();
+}
+
+function viewMetadata(urlId) {
+    // Implementar vista de metadatos
+    console.log('Ver metadatos de URL:', urlId);
+}
+
+// Exportar URLs
+function exportURLs(format) {
+    const params = new URLSearchParams({
+        format: format,
+        status: document.getElementById('statusFilter').value,
+        depth: document.getElementById('depthFilter').value,
+        type: document.getElementById('typeFilter').value
+    });
+    
+    window.location.href = `/crawler/sesiones/{{ session.pk }}/urls/export/?${params.toString()}`;
+}
+
+// Construir vista de árbol
+function buildTreeView() {
+    const treeContainer = document.querySelector('.url-tree');
+    const urls = {% raw %}{{ urls_json|safe }}{% endraw %} || [];
+    
+    // Organizar URLs por dominio y path
+    const tree = buildUrlTree(urls);
+    
+    // Renderizar árbol
+    treeContainer.innerHTML = renderTree(tree);
+    
+    // Agregar eventos de colapso/expansión
+    document.querySelectorAll('.tree-toggle').forEach(toggle => {
+        toggle.addEventListener('click', function() {
+            const icon = this.querySelector('.tree-icon');
+            const children = this.nextElementSibling;
+            
+            if (children) {
+                children.classList.toggle('d-none');
+                icon.classList.toggle('collapsed');
+            }
+        });
+    });
+}
+
+function buildUrlTree(urls) {
+    const tree = {};
+    
+    urls.forEach(url => {
+        const urlObj = new URL(url.url);
+        const parts = urlObj.pathname.split('/').filter(p => p);
+        
+        let current = tree;
+        let path = urlObj.hostname;
+        
+        // Agregar dominio
+        if (!current[path]) {
+            current[path] = { _data: null, _children: {} };
+        }
+        
+        current = current[path]._children;
+        
+        // Agregar paths
+        parts.forEach((part, index) => {
+            path += '/' + part;
+            if (!current[part]) {
+                current[part] = { _data: null, _children: {} };
+            }
+            
+            // Si es el último elemento, agregar datos
+            if (index === parts.length - 1) {
+                current[part]._data = url;
+            }
+            
+            current = current[part]._children;
+        });
+    });
+    
+    return tree;
+}
+
+function renderTree(tree, level = 0) {
+    let html = '';
+    
+    for (const [key, value] of Object.entries(tree)) {
+        const hasChildren = Object.keys(value._children).length > 0;
+        const data = value._data;
+        
+        html += `<div class="tree-node" style="margin-left: ${level * 20}px;">`;
+        
+        if (hasChildren) {
+            html += `
+                <div class="tree-toggle">
+                    <i class="bi bi-chevron-down tree-icon"></i>
+                    <span>${key}</span>
+                    ${data ? renderUrlStatus(data) : ''}
+                </div>
+                <div class="tree-children">
+                    ${renderTree(value._children, level + 1)}
+                </div>
+            `;
+        } else {
+            html += `
+                <div class="url-item">
+                    <span>${key}</span>
+                    ${data ? renderUrlStatus(data) : ''}
+                </div>
+            `;
+        }
+        
+        html += '</div>';
+    }
+    
+    return html;
+}
+
+function renderUrlStatus(url) {
+    const statusClass = url.status;
+    const statusText = url.status.charAt(0).toUpperCase() + url.status.slice(1);
+    
+    return `
+        <span class="url-status ${statusClass} ms-2">
+            <i class="bi bi-${getStatusIcon(url.status)}"></i>
+            ${statusText}
+        </span>
+    `;
+}
+
+function getStatusIcon(status) {
+    const icons = {
+        'completed': 'check-circle',
+        'processing': 'arrow-repeat',
+        'pending': 'clock',
+        'failed': 'x-circle',
+        'skipped': 'skip-forward'
+    };
+    return icons[status] || 'circle';
+}
+
+// Construir vista de grafo
+function buildGraphView() {
+    // Aquí se implementaría la visualización con D3.js o similar
+    const graphContainer = document.getElementById('urlGraph');
+    graphContainer.innerHTML = `
+        <div class="text-center py-5">
+            <i class="bi bi-diagram-3 display-1 text-muted"></i>
+            <p class="mt-3 text-muted">
+                Visualización de grafo en desarrollo.<br>
+                Mostrará las relaciones entre URLs y sus enlaces.
+            </p>
+        </div>
+    `;
+    
+    // En producción, usar D3.js para crear un grafo interactivo
+    // Ejemplo básico:
+    /*
+    const width = graphContainer.offsetWidth;
+    const height = 400;
+    
+    const svg = d3.select(graphContainer)
+        .append('svg')
+        .attr('width', width)
+        .attr('height', height);
+    
+    // Crear nodos y enlaces
+    const nodes = urls.map(url => ({
+        id: url.id,
+        url: url.url,
+        status: url.status,
+        depth: url.depth
+    }));
+    
+    const links = urls
+        .filter(url => url.parent_url)
+        .map(url => ({
+            source: urls.find(u => u.url === url.parent_url)?.id,
+            target: url.id
+        }))
+        .filter(link => link.source);
+    
+    // Crear simulación de fuerzas
+    const simulation = d3.forceSimulation(nodes)
+        .force('link', d3.forceLink(links).id(d => d.id))
+        .force('charge', d3.forceManyBody().strength(-100))
+        .force('center', d3.forceCenter(width / 2, height / 2));
+    
+    // Renderizar grafo...
+    */
+}
+
+// Auto-actualización si la sesión está activa
+{% if session.status == 'running' %}
+setInterval(function() {
+    // Recargar solo la tabla sin perder el estado de los filtros
+    fetch(window.location.href, {
+        headers: {'X-Requested-With': 'XMLHttpRequest'}
+    })
+    .then(response => response.text())
+    .then(html => {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        const newTable = doc.querySelector('#urlsTable tbody');
+        if (newTable) {
+            document.querySelector('#urlsTable tbody').innerHTML = newTable.innerHTML;
+            // Reaplicar filtros
+            filterURLs();
+        }
+    });
+}, 15000); // Actualizar cada 15 segundos
+{% endif %}
+
+// Estadísticas en tiempo real
+function updateStats() {
+    // Contar URLs por estado visible
+    const visibleRows = document.querySelectorAll('#urlsTable tbody tr[data-url-id]:not([style*="display: none"])');
+    const stats = {
+        completed: 0,
+        processing: 0,
+        pending: 0,
+        failed: 0,
+        skipped: 0
+    };
+    
+    visibleRows.forEach(row => {
+        const status = row.dataset.status;
+        if (stats.hasOwnProperty(status)) {
+            stats[status]++;
+        }
+    });
+    
+    // Actualizar contadores visuales si es necesario
+    console.log('URLs visibles por estado:', stats);
+}
+
+// Inicialización
+document.addEventListener('DOMContentLoaded', function() {
+    updateSelectedCount();
+    
+    // Tooltip para URLs largas
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+</script>
+{% endblock javascripts %}

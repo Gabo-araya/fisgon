@@ -1,0 +1,446 @@
+{% extends "panel/base_admin.html" %}
+{% load static %}
+{% block title %} {{ page }} {% endblock title %}
+
+{% block stylesheets %}
+<style>
+.form-section {
+    border-left: 4px solid #4154f1;
+    padding-left: 1rem;
+    margin-bottom: 2rem;
+}
+.form-section h6 {
+    color: #4154f1;
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+.file-type-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+.file-type-item {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem;
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+    transition: all 0.2s;
+}
+.file-type-item:hover {
+    background-color: #f8f9fa;
+}
+.file-type-item input:checked + label {
+    color: #4154f1;
+    font-weight: 600;
+}
+.help-text {
+    font-size: 0.875rem;
+    color: #6c757d;
+    margin-top: 0.25rem;
+}
+.form-preview {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+    padding: 1rem;
+    margin-top: 1rem;
+}
+</style>
+{% endblock stylesheets %}
+
+{% block content %}
+
+<main id="main" class="main">
+    <div class="pagetitle">
+        <h1><i class="{{ icon }}"></i> {{ page }}</h1>
+        <nav>
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'index' %}">Inicio</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'crawler:dashboard' %}">Crawler</a></li>
+                <li class="breadcrumb-item active">{{ page }}</li>
+            </ol>
+        </nav>
+    </div>
+
+    <section class="section">
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Configuración de Crawling</h5>
+
+                        <form method="post" id="create-session-form">
+                            {% csrf_token %}
+
+                            <!-- Información básica -->
+                            <div class="form-section">
+                                <h6><i class="bi bi-info-circle"></i> Información Básica</h6>
+
+                                <div class="row">
+                                    <div class="col-12 mb-3">
+                                        <label for="{{ form.name.id_for_label }}" class="form-label">
+                                            {{ form.name.label }}
+                                        </label>
+                                        {{ form.name }}
+                                        {% if form.name.help_text %}
+                                        <div class="help-text">{{ form.name.help_text }}</div>
+                                        {% endif %}
+                                        {% if form.name.errors %}
+                                        <div class="text-danger small">{{ form.name.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+
+                                    <div class="col-12 mb-3">
+                                        <label for="{{ form.target_url.id_for_label }}" class="form-label">
+                                            {{ form.target_url.label }}
+                                        </label>
+                                        {{ form.target_url }}
+                                        {% if form.target_url.help_text %}
+                                        <div class="help-text">{{ form.target_url.help_text }}</div>
+                                        {% endif %}
+                                        {% if form.target_url.errors %}
+                                        <div class="text-danger small">{{ form.target_url.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Configuración de crawling -->
+                            <div class="form-section">
+                                <h6><i class="bi bi-gear"></i> Configuración de Crawling</h6>
+
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="{{ form.max_depth.id_for_label }}" class="form-label">
+                                            {{ form.max_depth.label }}
+                                        </label>
+                                        {{ form.max_depth }}
+                                        {% if form.max_depth.help_text %}
+                                        <div class="help-text">{{ form.max_depth.help_text }}</div>
+                                        {% endif %}
+                                        {% if form.max_depth.errors %}
+                                        <div class="text-danger small">{{ form.max_depth.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+
+                                    <div class="col-md-6 mb-3">
+                                        <label for="{{ form.rate_limit.id_for_label }}" class="form-label">
+                                            {{ form.rate_limit.label }}
+                                        </label>
+                                        {{ form.rate_limit }}
+                                        {% if form.rate_limit.help_text %}
+                                        <div class="help-text">{{ form.rate_limit.help_text }}</div>
+                                        {% endif %}
+                                        {% if form.rate_limit.errors %}
+                                        <div class="text-danger small">{{ form.rate_limit.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+
+                                    <div class="col-md-6 mb-3">
+                                        <label for="{{ form.max_pages.id_for_label }}" class="form-label">
+                                            {{ form.max_pages.label }}
+                                        </label>
+                                        {{ form.max_pages }}
+                                        {% if form.max_pages.help_text %}
+                                        <div class="help-text">{{ form.max_pages.help_text }}</div>
+                                        {% endif %}
+                                        {% if form.max_pages.errors %}
+                                        <div class="text-danger small">{{ form.max_pages.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+
+                                    <div class="col-md-6 mb-3">
+                                        <label for="{{ form.max_file_size.id_for_label }}" class="form-label">
+                                            {{ form.max_file_size.label }}
+                                        </label>
+                                        {{ form.max_file_size }}
+                                        <div class="help-text">
+                                            Tamaño en bytes (50MB = 52,428,800 bytes)
+                                        </div>
+                                        {% if form.max_file_size.errors %}
+                                        <div class="text-danger small">{{ form.max_file_size.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Tipos de archivo -->
+                            <div class="form-section">
+                                <h6><i class="bi bi-files"></i> Tipos de Archivo a Buscar</h6>
+
+                                <div class="help-text mb-3">
+                                    Selecciona los tipos de archivo que deseas que el crawler busque y analice.
+                                </div>
+
+                                <div class="file-type-grid">
+                                    {% for choice in form.file_types %}
+                                    <div class="file-type-item">
+                                        {{ choice.tag }}
+                                        <label for="{{ choice.id_for_label }}" class="form-check-label ms-2">
+                                            {{ choice.choice_label }}
+                                        </label>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+
+                                {% if form.file_types.errors %}
+                                <div class="text-danger small mt-2">{{ form.file_types.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Opciones avanzadas -->
+                            <div class="form-section">
+                                <h6><i class="bi bi-sliders"></i> Opciones Avanzadas</h6>
+
+                                <div class="row">
+                                    <div class="col-md-4 mb-3">
+                                        <div class="form-check">
+                                            {{ form.respect_robots_txt }}
+                                            <label class="form-check-label" for="{{ form.respect_robots_txt.id_for_label }}">
+                                                {{ form.respect_robots_txt.label }}
+                                            </label>
+                                        </div>
+                                        {% if form.respect_robots_txt.help_text %}
+                                        <div class="help-text">{{ form.respect_robots_txt.help_text }}</div>
+                                        {% endif %}
+                                    </div>
+
+                                    <div class="col-md-4 mb-3">
+                                        <div class="form-check">
+                                            {{ form.follow_redirects }}
+                                            <label class="form-check-label" for="{{ form.follow_redirects.id_for_label }}">
+                                                {{ form.follow_redirects.label }}
+                                            </label>
+                                        </div>
+                                        {% if form.follow_redirects.help_text %}
+                                        <div class="help-text">{{ form.follow_redirects.help_text }}</div>
+                                        {% endif %}
+                                    </div>
+
+                                    <div class="col-md-4 mb-3">
+                                        <div class="form-check">
+                                            {{ form.extract_metadata }}
+                                            <label class="form-check-label" for="{{ form.extract_metadata.id_for_label }}">
+                                                {{ form.extract_metadata.label }}
+                                            </label>
+                                        </div>
+                                        {% if form.extract_metadata.help_text %}
+                                        <div class="help-text">{{ form.extract_metadata.help_text }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Botones de acción -->
+                            <div class="text-center">
+                                <hr>
+                                <a href="{% url 'crawler:dashboard' %}" class="btn btn-outline-secondary me-2">
+                                    <i class="bi bi-arrow-left"></i> Cancelar
+                                </a>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-plus-circle"></i> Crear Sesión de Crawling
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Panel lateral con información -->
+            <div class="col-lg-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Información</h5>
+
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle"></i>
+                            <strong>Nuevo en crawling?</strong><br>
+                            Te recomendamos empezar con configuraciones básicas: profundidad 2-3, velocidad 1 req/seg.
+                        </div>
+
+                        <h6>Consejos importantes:</h6>
+                        <ul class="list-unstyled">
+                            <li class="mb-2">
+                                <i class="bi bi-check-circle text-success"></i>
+                                <strong>Velocidad:</strong> Usa 0.5-1 req/seg para sitios pequeños
+                            </li>
+                            <li class="mb-2">
+                                <i class="bi bi-check-circle text-success"></i>
+                                <strong>Profundidad:</strong> Nivel 3 es suficiente para la mayoría de sitios
+                            </li>
+                            <li class="mb-2">
+                                <i class="bi bi-check-circle text-success"></i>
+                                <strong>Robots.txt:</strong> Mantener habilitado por respeto
+                            </li>
+                            <li class="mb-2">
+                                <i class="bi bi-check-circle text-success"></i>
+                                <strong>Archivos:</strong> Selecciona solo los tipos que necesites
+                            </li>
+                        </ul>
+
+                        <div class="alert alert-warning">
+                            <i class="bi bi-exclamation-triangle"></i>
+                            <strong>Importante:</strong> Respeta los términos de servicio del sitio web objetivo.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Vista previa de configuración -->
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Vista Previa</h5>
+                        <small class="text-muted">Configuración actual:</small>
+
+                        <div class="form-preview" id="config-preview">
+                            <div class="mb-2">
+                                <strong>Dominio:</strong> <span id="preview-domain">-</span>
+                            </div>
+                            <div class="mb-2">
+                                <strong>Profundidad:</strong> <span id="preview-depth">3</span> niveles
+                            </div>
+                            <div class="mb-2">
+                                <strong>Velocidad:</strong> <span id="preview-rate">1.0</span> req/seg
+                            </div>
+                            <div class="mb-2">
+                                <strong>Máx. páginas:</strong> <span id="preview-pages">1000</span>
+                            </div>
+                            <div>
+                                <strong>Tipos de archivo:</strong><br>
+                                <span id="preview-filetypes" class="small text-muted">Ninguno seleccionado</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+</main>
+
+{% endblock content %}
+
+{% block javascripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Elementos del formulario
+    const targetUrlInput = document.getElementById('id_target_url');
+    const maxDepthInput = document.getElementById('id_max_depth');
+    const rateLimitInput = document.getElementById('id_rate_limit');
+    const maxPagesInput = document.getElementById('id_max_pages');
+    const fileTypeInputs = document.querySelectorAll('input[name="file_types"]');
+
+    // Elementos de vista previa
+    const previewDomain = document.getElementById('preview-domain');
+    const previewDepth = document.getElementById('preview-depth');
+    const previewRate = document.getElementById('preview-rate');
+    const previewPages = document.getElementById('preview-pages');
+    const previewFiletypes = document.getElementById('preview-filetypes');
+
+    // Función para actualizar vista previa
+    function updatePreview() {
+        // Actualizar dominio
+        if (targetUrlInput.value) {
+            try {
+                const url = new URL(targetUrlInput.value);
+                previewDomain.textContent = url.hostname;
+            } catch (e) {
+                previewDomain.textContent = 'URL inválida';
+            }
+        } else {
+            previewDomain.textContent = '-';
+        }
+
+        // Actualizar otros campos
+        previewDepth.textContent = maxDepthInput.value || '3';
+        previewRate.textContent = rateLimitInput.value || '1.0';
+        previewPages.textContent = maxPagesInput.value || '1000';
+
+        // Actualizar tipos de archivo seleccionados
+        const selectedTypes = Array.from(fileTypeInputs)
+            .filter(input => input.checked)
+            .map(input => input.nextElementSibling.textContent.trim());
+
+        if (selectedTypes.length > 0) {
+            previewFiletypes.innerHTML = selectedTypes.map(type =>
+                `<span class="badge bg-secondary me-1">${type}</span>`
+            ).join('');
+        } else {
+            previewFiletypes.innerHTML = '<span class="text-muted">Ninguno seleccionado</span>';
+        }
+    }
+
+    // Event listeners para actualizar vista previa
+    targetUrlInput.addEventListener('input', updatePreview);
+    maxDepthInput.addEventListener('input', updatePreview);
+    rateLimitInput.addEventListener('input', updatePreview);
+    maxPagesInput.addEventListener('input', updatePreview);
+
+    fileTypeInputs.forEach(input => {
+        input.addEventListener('change', updatePreview);
+    });
+
+    // Validación en tiempo real del formulario
+    targetUrlInput.addEventListener('blur', function() {
+        const url = this.value;
+        if (url && !url.startsWith('http://') && !url.startsWith('https://')) {
+            this.setCustomValidity('La URL debe comenzar con http:// o https://');
+        } else {
+            this.setCustomValidity('');
+        }
+    });
+
+    // Validación de profundidad
+    maxDepthInput.addEventListener('input', function() {
+        const depth = parseInt(this.value);
+        if (depth < 1 || depth > 10) {
+            this.setCustomValidity('La profundidad debe estar entre 1 y 10');
+        } else {
+            this.setCustomValidity('');
+        }
+    });
+
+    // Validación de velocidad
+    rateLimitInput.addEventListener('input', function() {
+        const rate = parseFloat(this.value);
+        if (rate <= 0 || rate > 10) {
+            this.setCustomValidity('La velocidad debe estar entre 0.1 y 10.0');
+        } else {
+            this.setCustomValidity('');
+        }
+    });
+
+    // Conversión automática de tamaño de archivo
+    const maxFileSizeInput = document.getElementById('id_max_file_size');
+    const fileSizeHelp = maxFileSizeInput.nextElementSibling;
+
+    maxFileSizeInput.addEventListener('input', function() {
+        const bytes = parseInt(this.value);
+        if (bytes) {
+            const mb = (bytes / (1024 * 1024)).toFixed(1);
+            fileSizeHelp.textContent = `Tamaño en bytes (${mb} MB)`;
+        }
+    });
+
+    // Actualizar vista previa inicial
+    updatePreview();
+
+    // Confirmación antes de enviar
+    document.getElementById('create-session-form').addEventListener('submit', function(e) {
+        const selectedTypes = Array.from(fileTypeInputs).filter(input => input.checked);
+
+        if (selectedTypes.length === 0) {
+            if (!confirm('No has seleccionado tipos de archivo específicos. ¿Deseas continuar? (Solo se analizarán páginas HTML)')) {
+                e.preventDefault();
+                return false;
+            }
+        }
+
+        // Mostrar indicador de carga
+        const submitBtn = this.querySelector('button[type="submit"]');
+        submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Creando sesión...';
+        submitBtn.disabled = true;
+    });
+});
+</script>
+{% endblock javascripts %}

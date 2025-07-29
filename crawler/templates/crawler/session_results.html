@@ -1,0 +1,574 @@
+{% extends "panel/base_admin.html" %}
+{% load static %}
+{% block title %} Resultados - {{ session.name }} {% endblock title %}
+
+{% block stylesheets %}
+<style>
+.result-card {
+    border: 1px solid #dee2e6;
+    border-radius: 0.5rem;
+    transition: all 0.3s;
+    margin-bottom: 1rem;
+}
+.result-card:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+}
+.file-icon {
+    font-size: 3rem;
+    margin-bottom: 0.5rem;
+}
+.file-icon.pdf { color: #dc3545; }
+.file-icon.doc, .file-icon.docx { color: #0d6efd; }
+.file-icon.xls, .file-icon.xlsx { color: #198754; }
+.file-icon.ppt, .file-icon.pptx { color: #fd7e14; }
+.file-icon.jpg, .file-icon.jpeg, .file-icon.png { color: #6f42c1; }
+.file-icon.mp3, .file-icon.mp4 { color: #d63384; }
+.file-icon.xml, .file-icon.json { color: #20c997; }
+
+.metadata-table {
+    font-size: 0.875rem;
+}
+.metadata-table td {
+    word-break: break-word;
+}
+.metadata-key {
+    font-weight: 600;
+    color: #495057;
+    width: 30%;
+}
+.filter-chip {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    margin: 0.25rem;
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 1rem;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.filter-chip:hover {
+    background-color: #e9ecef;
+}
+.filter-chip.active {
+    background-color: #0d6efd;
+    color: white;
+    border-color: #0d6efd;
+}
+.stats-widget {
+    text-align: center;
+    padding: 1.5rem;
+    border-radius: 0.5rem;
+    background-color: #f8f9fa;
+}
+.stats-widget h3 {
+    margin-bottom: 0.5rem;
+    color: #0d6efd;
+}
+.search-highlight {
+    background-color: #fff3cd;
+    padding: 0.1rem 0.2rem;
+    border-radius: 0.2rem;
+}
+.result-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1rem;
+}
+.view-toggle {
+    border: 1px solid #dee2e6;
+    background: white;
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+}
+.view-toggle.active {
+    background-color: #0d6efd;
+    color: white;
+    border-color: #0d6efd;
+}
+</style>
+{% endblock stylesheets %}
+
+{% block content %}
+
+<main id="main" class="main">
+    <div class="pagetitle">
+        <h1><i class="bi bi-file-earmark-text"></i> Resultados de Crawling</h1>
+        <nav>
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'index' %}">Inicio</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'crawler:dashboard' %}">Crawler</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'crawler:session_list' %}">Sesiones</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'crawler:session_detail' session.pk %}">{{ session.name|truncatechars:20 }}</a></li>
+                <li class="breadcrumb-item active">Resultados</li>
+            </ol>
+        </nav>
+    </div>
+
+    <section class="section">
+        <!-- Información de la sesión -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mt-3">
+                            <div>
+                                <h5 class="card-title mb-1">{{ session.name }}</h5>
+                                <p class="text-muted mb-0">
+                                    <i class="bi bi-globe"></i> {{ session.target_domain }}
+                                    | <i class="bi bi-calendar"></i> {{ session.completed_at|date:"d/m/Y H:i" }}
+                                    | <i class="bi bi-file-earmark"></i> {{ results.count }} archivos encontrados
+                                </p>
+                            </div>
+                            <div>
+                                <a href="{% url 'crawler:export_results' session.pk %}" class="btn btn-success">
+                                    <i class="bi bi-download"></i> Exportar Todo
+                                </a>
+                                <a href="{% url 'crawler:session_detail' session.pk %}" class="btn btn-secondary">
+                                    <i class="bi bi-arrow-left"></i> Volver
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Estadísticas rápidas -->
+        <div class="row mt-3">
+            <div class="col-md-3">
+                <div class="stats-widget">
+                    <i class="bi bi-file-earmark-text display-4"></i>
+                    <h3>{{ total_results }}</h3>
+                    <p class="mb-0">Total de Archivos</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stats-widget">
+                    <i class="bi bi-hdd display-4"></i>
+                    <h3>{{ total_size|filesizeformat }}</h3>
+                    <p class="mb-0">Tamaño Total</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stats-widget">
+                    <i class="bi bi-file-earmark-pdf display-4"></i>
+                    <h3>{{ file_type_counts.pdf|default:0 }}</h3>
+                    <p class="mb-0">Archivos PDF</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stats-widget">
+                    <i class="bi bi-file-earmark-word display-4"></i>
+                    <h3>{{ file_type_counts.doc|add:file_type_counts.docx|default:0 }}</h3>
+                    <p class="mb-0">Documentos Office</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filtros y búsqueda -->
+        <div class="row mt-3">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Filtros y Búsqueda</h5>
+                        
+                        <!-- Búsqueda -->
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                                    <input type="text" class="form-control" id="searchInput" 
+                                           placeholder="Buscar en nombres de archivo, URLs o metadatos...">
+                                    <button class="btn btn-primary" onclick="searchResults()">Buscar</button>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="btn-group" role="group">
+                                    <span class="me-2 align-self-center">Vista:</span>
+                                    <button type="button" class="view-toggle active" data-view="grid">
+                                        <i class="bi bi-grid-3x3-gap"></i> Grid
+                                    </button>
+                                    <button type="button" class="view-toggle" data-view="list">
+                                        <i class="bi bi-list-ul"></i> Lista
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Filtros por tipo -->
+                        <div class="filter-section">
+                            <strong>Filtrar por tipo:</strong>
+                            <div class="filter-chips">
+                                <span class="filter-chip active" data-filter="all">
+                                    Todos ({{ total_results }})
+                                </span>
+                                {% for file_type, count in file_type_counts.items %}
+                                <span class="filter-chip" data-filter="{{ file_type }}">
+                                    {{ file_type|upper }} ({{ count }})
+                                </span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Resultados -->
+        <div class="row mt-3">
+            <div class="col-12">
+                <div id="resultsContainer">
+                    <!-- Vista Grid (por defecto) -->
+                    <div id="gridView" class="result-grid">
+                        {% for result in results %}
+                        <div class="result-card p-3" data-type="{{ result.url_queue_item.url_type }}" data-result-id="{{ result.id }}">
+                            <div class="text-center">
+                                <i class="bi bi-file-earmark-{{ result.url_queue_item.url_type }} file-icon {{ result.url_queue_item.url_type }}"></i>
+                            </div>
+                            
+                            <h6 class="text-truncate mb-2" title="{{ result.file_name }}">
+                                {{ result.file_name|default:"Sin nombre" }}
+                            </h6>
+                            
+                            <div class="small text-muted mb-2">
+                                <i class="bi bi-hdd"></i> {{ result.url_queue_item.file_size|filesizeformat|default:"Desconocido" }}
+                                | <i class="bi bi-calendar"></i> {{ result.created_at|date:"d/m/Y" }}
+                            </div>
+                            
+                            <div class="mb-2">
+                                <small class="text-muted">URL:</small><br>
+                                <a href="{{ result.url_queue_item.url }}" target="_blank" 
+                                   class="text-truncate d-block small" 
+                                   title="{{ result.url_queue_item.url }}">
+                                    {{ result.url_queue_item.url|truncatechars:50 }}
+                                </a>
+                            </div>
+                            
+                            {% if result.metadata %}
+                            <div class="metadata-preview">
+                                <small class="text-muted">Metadatos encontrados:</small>
+                                <div class="small">
+                                    {% for key, value in result.metadata.items|slice:":3" %}
+                                    <div class="text-truncate">
+                                        <strong>{{ key }}:</strong> {{ value|truncatechars:30 }}
+                                    </div>
+                                    {% endfor %}
+                                    {% if result.metadata.items|length > 3 %}
+                                    <div class="text-muted">...y {{ result.metadata.items|length|add:"-3" }} más</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endif %}
+                            
+                            <div class="mt-3 d-flex gap-2">
+                                <button class="btn btn-sm btn-primary flex-fill" onclick="viewDetails({{ result.id }})">
+                                    <i class="bi bi-eye"></i> Ver Detalles
+                                </button>
+                                <button class="btn btn-sm btn-outline-success" onclick="downloadResult({{ result.id }})" title="Descargar">
+                                    <i class="bi bi-download"></i>
+                                </button>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="col-12">
+                            <div class="text-center py-5">
+                                <i class="bi bi-inbox display-1 text-muted"></i>
+                                <h4 class="mt-3 text-muted">No se encontraron archivos</h4>
+                                <p class="text-muted">Esta sesión no encontró archivos del tipo especificado.</p>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    
+                    <!-- Vista Lista (oculta por defecto) -->
+                    <div id="listView" class="d-none">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Tipo</th>
+                                        <th>Nombre de Archivo</th>
+                                        <th>Tamaño</th>
+                                        <th>URL</th>
+                                        <th>Metadatos</th>
+                                        <th>Fecha</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for result in results %}
+                                    <tr data-type="{{ result.url_queue_item.url_type }}" data-result-id="{{ result.id }}">
+                                        <td>
+                                            <span class="badge bg-secondary">{{ result.url_queue_item.url_type|upper }}</span>
+                                        </td>
+                                        <td class="text-truncate" style="max-width: 200px;" title="{{ result.file_name }}">
+                                            {{ result.file_name|default:"Sin nombre" }}
+                                        </td>
+                                        <td>{{ result.url_queue_item.file_size|filesizeformat|default:"-" }}</td>
+                                        <td>
+                                            <a href="{{ result.url_queue_item.url }}" target="_blank" 
+                                               class="text-truncate d-block" style="max-width: 300px;"
+                                               title="{{ result.url_queue_item.url }}">
+                                                {{ result.url_queue_item.url|truncatechars:40 }}
+                                            </a>
+                                        </td>
+                                        <td>
+                                            {% if result.metadata %}
+                                                <span class="badge bg-success">{{ result.metadata.items|length }} campos</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">Sin datos</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ result.created_at|date:"d/m/Y H:i" }}</td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm">
+                                                <button class="btn btn-outline-primary" onclick="viewDetails({{ result.id }})" title="Ver detalles">
+                                                    <i class="bi bi-eye"></i>
+                                                </button>
+                                                <button class="btn btn-outline-success" onclick="downloadResult({{ result.id }})" title="Descargar">
+                                                    <i class="bi bi-download"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Paginación -->
+        {% if is_paginated %}
+        <div class="row mt-4">
+            <div class="col-12">
+                <nav aria-label="Navegación de resultados">
+                    <ul class="pagination justify-content-center">
+                        {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page=1">
+                                <i class="bi bi-chevron-double-left"></i>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}">
+                                <i class="bi bi-chevron-left"></i>
+                            </a>
+                        </li>
+                        {% endif %}
+                        
+                        <li class="page-item active">
+                            <span class="page-link">
+                                Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
+                            </span>
+                        </li>
+                        
+                        {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}">
+                                <i class="bi bi-chevron-right"></i>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">
+                                <i class="bi bi-chevron-double-right"></i>
+                            </a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            </div>
+        </div>
+        {% endif %}
+    </section>
+</main>
+
+<!-- Modal para detalles -->
+<div class="modal fade" id="detailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Detalles del Archivo</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="modalContent">
+                <!-- Contenido dinámico -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                <button type="button" class="btn btn-success" id="downloadBtn">
+                    <i class="bi bi-download"></i> Descargar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock content %}
+
+{% block javascripts %}
+<script>
+// Cambio de vista
+document.querySelectorAll('.view-toggle').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const view = this.dataset.view;
+        
+        // Actualizar botones
+        document.querySelectorAll('.view-toggle').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        
+        // Cambiar vista
+        if (view === 'grid') {
+            document.getElementById('gridView').classList.remove('d-none');
+            document.getElementById('listView').classList.add('d-none');
+        } else {
+            document.getElementById('gridView').classList.add('d-none');
+            document.getElementById('listView').classList.remove('d-none');
+        }
+    });
+});
+
+// Filtros por tipo
+document.querySelectorAll('.filter-chip').forEach(chip => {
+    chip.addEventListener('click', function() {
+        const filter = this.dataset.filter;
+        
+        // Actualizar chips
+        document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+        this.classList.add('active');
+        
+        // Filtrar resultados
+        const cards = document.querySelectorAll('.result-card, tr[data-result-id]');
+        cards.forEach(card => {
+            if (filter === 'all' || card.dataset.type === filter) {
+                card.style.display = '';
+            } else {
+                card.style.display = 'none';
+            }
+        });
+    });
+});
+
+// Búsqueda
+function searchResults() {
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+    const cards = document.querySelectorAll('.result-card, tr[data-result-id]');
+    
+    cards.forEach(card => {
+        const text = card.textContent.toLowerCase();
+        if (text.includes(searchTerm)) {
+            card.style.display = '';
+            // Resaltar coincidencias
+            if (searchTerm) {
+                highlightText(card, searchTerm);
+            }
+        } else {
+            card.style.display = 'none';
+        }
+    });
+}
+
+// Búsqueda en tiempo real
+document.getElementById('searchInput').addEventListener('keyup', function(e) {
+    if (e.key === 'Enter' || this.value === '') {
+        searchResults();
+    }
+});
+
+// Ver detalles
+function viewDetails(resultId) {
+    // Aquí harías una petición AJAX para obtener los detalles
+    fetch(`/crawler/api/result/${resultId}/details/`)
+        .then(response => response.json())
+        .then(data => {
+            showDetailsModal(data);
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            // Por ahora, mostrar datos de ejemplo
+            showDetailsModal({
+                id: resultId,
+                file_name: 'documento_ejemplo.pdf',
+                file_size: '2.5 MB',
+                url: 'https://example.com/documento.pdf',
+                metadata: {
+                    'Autor': 'Juan Pérez',
+                    'Título': 'Documento de Ejemplo',
+                    'Fecha de creación': '2024-01-15',
+                    'Software': 'Microsoft Word 2019',
+                    'Páginas': '15'
+                }
+            });
+        });
+}
+
+// Mostrar modal de detalles
+function showDetailsModal(data) {
+    const modalContent = document.getElementById('modalContent');
+    const downloadBtn = document.getElementById('downloadBtn');
+    
+    let metadataHtml = '';
+    if (data.metadata && Object.keys(data.metadata).length > 0) {
+        metadataHtml = `
+            <h6>Metadatos Extraídos</h6>
+            <table class="table table-sm metadata-table">
+                <tbody>
+                    ${Object.entries(data.metadata).map(([key, value]) => `
+                        <tr>
+                            <td class="metadata-key">${key}:</td>
+                            <td>${value || 'N/A'}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+    } else {
+        metadataHtml = '<p class="text-muted">No se encontraron metadatos en este archivo.</p>';
+    }
+    
+    modalContent.innerHTML = `
+        <h6>Información del Archivo</h6>
+        <table class="table table-sm mb-4">
+            <tr>
+                <td class="metadata-key">Nombre:</td>
+                <td>${data.file_name || 'Sin nombre'}</td>
+            </tr>
+            <tr>
+                <td class="metadata-key">Tamaño:</td>
+                <td>${data.file_size || 'Desconocido'}</td>
+            </tr>
+            <tr>
+                <td class="metadata-key">URL:</td>
+                <td><a href="${data.url}" target="_blank">${data.url}</a></td>
+            </tr>
+            <tr>
+                <td class="metadata-key">Hash SHA-256:</td>
+                <td><code>${data.file_hash || 'No calculado'}</code></td>
+            </tr>
+        </table>
+        ${metadataHtml}
+    `;
+    
+    downloadBtn.onclick = () => downloadResult(data.id);
+    
+    const modal = new bootstrap.Modal(document.getElementById('detailsModal'));
+    modal.show();
+}
+
+// Descargar resultado
+function downloadResult(resultId) {
+    // Implementar descarga
+    window.location.href = `/crawler/api/result/${resultId}/download/`;
+}
+
+// Resaltar texto
+function highlightText(element, searchTerm) {
+    // Implementación simple de resaltado
+    // En producción, usar una biblioteca más robusta
+}
+</script>
+{% endblock javascripts %}

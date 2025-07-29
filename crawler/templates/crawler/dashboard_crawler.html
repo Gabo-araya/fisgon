@@ -1,296 +1,282 @@
 {% extends "panel/base_admin.html" %}
 {% load static %}
-{% block title %}Dashboard Crawler{% endblock title %}
+{% block title %} {{ page }} {% endblock title %}
 
 {% block stylesheets %}
 <style>
-.crawler-stats {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border-radius: 15px;
-    color: white;
+.quick-action-card {
+    transition: transform 0.2s;
+    cursor: pointer;
 }
-.status-active { color: #28a745; }
-.status-stopped { color: #dc3545; }
-.status-paused { color: #ffc107; }
-.file-type-icon {
-    width: 24px;
-    height: 24px;
-    margin-right: 8px;
+.quick-action-card:hover {
+    transform: translateY(-5px);
 }
-.progress-ring {
-    transform: rotate(-90deg);
+.session-card {
+    border-left: 4px solid #dee2e6;
 }
-.crawl-session-card {
-    border-left: 4px solid #007bff;
-    transition: all 0.3s ease;
+.session-card.session-running {
+    border-left-color: #0dcaf0;
 }
-.crawl-session-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+.session-card.session-completed {
+    border-left-color: #198754;
+}
+.session-card.session-failed {
+    border-left-color: #dc3545;
+}
+.progress-bar-animated {
+    animation: progress-bar-stripes 1s linear infinite;
 }
 </style>
 {% endblock stylesheets %}
 
 {% block content %}
+
 <main id="main" class="main">
     <div class="pagetitle">
-        <h1><i class="bi bi-radar"></i> Dashboard Crawler</h1>
+        <h1><i class="{{ icon }}"></i> {{ page }}</h1>
         <nav>
             <ol class="breadcrumb">
                 <li class="breadcrumb-item"><a href="{% url 'index' %}">Inicio</a></li>
-                <li class="breadcrumb-item active">Crawler</li>
+                <li class="breadcrumb-item active">{{ page }}</li>
             </ol>
         </nav>
     </div>
 
-    <!-- Estado actual del sistema -->
-    <section class="section">
+    <section class="section dashboard">
+        <!-- Estadísticas generales -->
         <div class="row">
-            <!-- Botón principal de control -->
-            <div class="col-lg-3">
-                <div class="card crawler-stats text-center py-4">
+            <div class="col-xxl-3 col-md-6">
+                <div class="card info-card sales-card">
                     <div class="card-body">
-                        <i class="bi bi-play-circle display-4 mb-3"></i>
-                        <h5 class="card-title text-white">Control Principal</h5>
-                        <button id="startCrawlBtn" class="btn btn-light btn-lg">
-                            <i class="bi bi-play-fill"></i> Iniciar Crawl
-                        </button>
+                        <h5 class="card-title">Total Sesiones</h5>
+                        <div class="d-flex align-items-center">
+                            <div class="card-icon rounded-circle d-flex align-items-center justify-content-center">
+                                <i class="bi bi-folder2-open"></i>
+                            </div>
+                            <div class="ps-3">
+                                <h6>{{ stats.total_sessions }}</h6>
+                                <span class="text-muted small pt-2">sesiones totales</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Estadísticas en tiempo real -->
-            <div class="col-lg-9">
-                <div class="row">
-                    <div class="col-md-3">
-                        <div class="card info-card">
-                            <div class="card-body">
-                                <h5 class="card-title">Sesiones Activas</h5>
-                                <div class="d-flex align-items-center">
-                                    <div class="card-icon rounded-circle d-flex align-items-center justify-content-center">
-                                        <i class="bi bi-activity text-success"></i>
-                                    </div>
-                                    <div class="ps-3">
-                                        <h6 id="activeSessions">{{ active_sessions }}</h6>
-                                        <span class="text-success small pt-1 fw-bold">En ejecución</span>
-                                    </div>
-                                </div>
+            <div class="col-xxl-3 col-md-6">
+                <div class="card info-card revenue-card">
+                    <div class="card-body">
+                        <h5 class="card-title">Sesiones Activas</h5>
+                        <div class="d-flex align-items-center">
+                            <div class="card-icon rounded-circle d-flex align-items-center justify-content-center">
+                                <i class="bi bi-activity"></i>
+                            </div>
+                            <div class="ps-3">
+                                <h6>{{ stats.active_sessions }}</h6>
+                                <span class="text-success small pt-1">en ejecución</span>
                             </div>
                         </div>
                     </div>
+                </div>
+            </div>
 
-                    <div class="col-md-3">
-                        <div class="card info-card">
-                            <div class="card-body">
-                                <h5 class="card-title">URLs Descubiertas</h5>
-                                <div class="d-flex align-items-center">
-                                    <div class="card-icon rounded-circle d-flex align-items-center justify-content-center">
-                                        <i class="bi bi-link-45deg text-primary"></i>
-                                    </div>
-                                    <div class="ps-3">
-                                        <h6 id="discoveredUrls">{{ discovered_urls }}</h6>
-                                        <span class="text-muted small pt-1">Total encontradas</span>
-                                    </div>
-                                </div>
+            <div class="col-xxl-3 col-md-6">
+                <div class="card info-card customers-card">
+                    <div class="card-body">
+                        <h5 class="card-title">URLs Procesadas</h5>
+                        <div class="d-flex align-items-center">
+                            <div class="card-icon rounded-circle d-flex align-items-center justify-content-center">
+                                <i class="bi bi-link-45deg"></i>
+                            </div>
+                            <div class="ps-3">
+                                <h6>{{ stats.total_urls_processed }}</h6>
+                                <span class="text-muted small pt-2">URLs totales</span>
                             </div>
                         </div>
                     </div>
+                </div>
+            </div>
 
-                    <div class="col-md-3">
-                        <div class="card info-card">
-                            <div class="card-body">
-                                <h5 class="card-title">Archivos Procesados</h5>
-                                <div class="d-flex align-items-center">
-                                    <div class="card-icon rounded-circle d-flex align-items-center justify-content-center">
-                                        <i class="bi bi-files text-warning"></i>
-                                    </div>
-                                    <div class="ps-3">
-                                        <h6 id="processedFiles">{{ processed_files }}</h6>
-                                        <span class="text-muted small pt-1">Metadatos extraídos</span>
-                                    </div>
-                                </div>
+            <div class="col-xxl-3 col-md-6">
+                <div class="card info-card sales-card">
+                    <div class="card-body">
+                        <h5 class="card-title">Archivos Encontrados</h5>
+                        <div class="d-flex align-items-center">
+                            <div class="card-icon rounded-circle d-flex align-items-center justify-content-center">
+                                <i class="bi bi-file-earmark-text"></i>
                             </div>
-                        </div>
-                    </div>
-
-                    <div class="col-md-3">
-                        <div class="card info-card">
-                            <div class="card-body">
-                                <h5 class="card-title">Patrones Detectados</h5>
-                                <div class="d-flex align-items-center">
-                                    <div class="card-icon rounded-circle d-flex align-items-center justify-content-center">
-                                        <i class="bi bi-exclamation-triangle text-danger"></i>
-                                    </div>
-                                    <div class="ps-3">
-                                        <h6 id="detectedPatterns">{{ patterns_count }}</h6>
-                                        <span class="text-danger small pt-1">Riesgos encontrados</span>
-                                    </div>
-                                </div>
+                            <div class="ps-3">
+                                <h6>{{ stats.total_files_found }}</h6>
+                                <span class="text-muted small pt-2">archivos</span>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-    </section>
 
-    <!-- Configuración rápida y sesiones recientes -->
-    <section class="section">
-        <div class="row">
-            <!-- Panel de configuración rápida -->
-            <div class="col-lg-4">
-                <div class="card">
-                    <div class="card-header">
-                        <h5 class="card-title">
-                            <i class="bi bi-gear"></i> Configuración Rápida
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <form id="quickConfigForm">
-                            <div class="mb-3">
-                                <label for="targetDomain" class="form-label">Dominio Objetivo</label>
-                                <input type="url" class="form-control" id="targetDomain"
-                                       placeholder="https://ejemplo.com" required>
-                            </div>
-
-                            <div class="mb-3">
-                                <label for="maxDepth" class="form-label">Profundidad Máxima</label>
-                                <select class="form-select" id="maxDepth">
-                                    <option value="1">1 nivel</option>
-                                    <option value="2" selected>2 niveles</option>
-                                    <option value="3">3 niveles</option>
-                                    <option value="4">4 niveles</option>
-                                </select>
-                            </div>
-
-                            <div class="mb-3">
-                                <label for="fileTypes" class="form-label">Tipos de Archivo</label>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" value="pdf" id="typePdf" checked>
-                                    <label class="form-check-label" for="typePdf">
-                                        <i class="bi bi-file-pdf file-type-icon"></i>PDF
-                                    </label>
-                                </div>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" value="office" id="typeOffice" checked>
-                                    <label class="form-check-label" for="typeOffice">
-                                        <i class="bi bi-file-word file-type-icon"></i>Office
-                                    </label>
-                                </div>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" value="images" id="typeImages">
-                                    <label class="form-check-label" for="typeImages">
-                                        <i class="bi bi-image file-type-icon"></i>Imágenes
-                                    </label>
-                                </div>
-                            </div>
-
-                            <div class="mb-3">
-                                <label for="rateLimit" class="form-label">Velocidad (req/seg)</label>
-                                <input type="range" class="form-range" id="rateLimit"
-                                       min="0.5" max="5" step="0.5" value="1">
-                                <small class="text-muted">Actual: <span id="rateLimitValue">1</span> req/seg</small>
-                            </div>
-
-                            <button type="submit" class="btn btn-primary w-100">
-                                <i class="bi bi-rocket"></i> Iniciar Crawl
-                            </button>
-                        </form>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Sesiones recientes -->
-            <div class="col-lg-8">
-                <div class="card">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <h5 class="card-title">
-                            <i class="bi bi-clock-history"></i> Sesiones Recientes
-                        </h5>
-                        <a href="{% url 'crawler:session_list' %}" class="btn btn-outline-primary btn-sm">
-                            Ver todas
-                        </a>
-                    </div>
-                    <div class="card-body">
-                        {% if recent_sessions %}
-                            {% for session in recent_sessions %}
-                            <div class="crawl-session-card card mb-3">
-                                <div class="card-body">
-                                    <div class="row align-items-center">
-                                        <div class="col-md-6">
-                                            <h6 class="mb-1">
-                                                <i class="bi bi-globe"></i> {{ session.target_domain }}
-                                            </h6>
-                                            <small class="text-muted">
-                                                Iniciado: {{ session.started_at|date:"d/m/Y H:i" }}
-                                            </small>
-                                        </div>
-                                        <div class="col-md-3 text-center">
-                                            <span class="badge {% if session.status == 'completed' %}bg-success{% elif session.status == 'running' %}bg-primary{% else %}bg-secondary{% endif %}">
-                                                {{ session.get_status_display }}
-                                            </span>
-                                            <div class="small text-muted mt-1">
-                                                {{ session.discovered_urls.count }} URLs
-                                            </div>
-                                        </div>
-                                        <div class="col-md-3 text-end">
-                                            <div class="btn-group btn-group-sm">
-                                                <a href="{% url 'crawler:session_detail' session.id %}"
-                                                   class="btn btn-outline-primary" title="Ver detalles">
-                                                    <i class="bi bi-eye"></i>
-                                                </a>
-                                                {% if session.status == 'running' %}
-                                                <button class="btn btn-outline-warning"
-                                                        onclick="pauseSession({{ session.id }})" title="Pausar">
-                                                    <i class="bi bi-pause"></i>
-                                                </button>
-                                                <button class="btn btn-outline-danger"
-                                                        onclick="stopSession({{ session.id }})" title="Detener">
-                                                    <i class="bi bi-stop"></i>
-                                                </button>
-                                                {% endif %}
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {% if session.status == 'running' %}
-                                    <div class="progress mt-2" style="height: 5px;">
-                                        <div class="progress-bar" role="progressbar"
-                                             style="width: {{ session.progress_percentage }}%"></div>
-                                    </div>
-                                    {% endif %}
-                                </div>
-                            </div>
-                            {% endfor %}
-                        {% else %}
-                            <div class="text-center py-4">
-                                <i class="bi bi-inbox display-1 text-muted"></i>
-                                <h5 class="mt-3 text-muted">No hay sesiones recientes</h5>
-                                <p class="text-muted">Configura y ejecuta tu primer crawl usando el panel de la izquierda</p>
-                            </div>
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Monitor en tiempo real (WebSocket) -->
-    <section class="section">
+        <!-- Acciones rápidas -->
         <div class="row">
             <div class="col-12">
                 <div class="card">
-                    <div class="card-header">
-                        <h5 class="card-title">
-                            <i class="bi bi-broadcast"></i> Monitor en Tiempo Real
-                        </h5>
-                    </div>
                     <div class="card-body">
-                        <div id="realTimeLog" class="bg-dark text-light p-3 rounded" style="height: 300px; overflow-y: auto;">
-                            <div class="text-muted">
-                                <i class="bi bi-info-circle"></i> Esperando actividad del crawler...
+                        <h5 class="card-title">Acciones Rápidas</h5>
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <div class="card quick-action-card text-center p-3" onclick="showNewSessionModal()">
+                                    <i class="bi bi-plus-circle display-4 text-primary"></i>
+                                    <h6 class="mt-2">Nueva Sesión</h6>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <a href="{% url 'crawler:session_list' %}" class="text-decoration-none">
+                                    <div class="card quick-action-card text-center p-3">
+                                        <i class="bi bi-list-ul display-4 text-info"></i>
+                                        <h6 class="mt-2">Ver Todas</h6>
+                                    </div>
+                                </a>
+                            </div>
+                            <div class="col-md-3">
+                                <a href="{% url 'crawler:stats' %}" class="text-decoration-none">
+                                    <div class="card quick-action-card text-center p-3">
+                                        <i class="bi bi-bar-chart display-4 text-success"></i>
+                                        <h6 class="mt-2">Estadísticas</h6>
+                                    </div>
+                                </a>
+                            </div>
+                            <div class="col-md-3">
+                                <a href="{% url 'ayuda' %}" class="text-decoration-none">
+                                    <div class="card quick-action-card text-center p-3">
+                                        <i class="bi bi-question-circle display-4 text-warning"></i>
+                                        <h6 class="mt-2">Ayuda</h6>
+                                    </div>
+                                </a>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sesiones activas -->
+        {% if active_sessions %}
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Sesiones Activas</h5>
+                        <div class="row g-3">
+                            {% for session in active_sessions %}
+                            <div class="col-md-6">
+                                <div class="card session-card session-{{ session.status }}">
+                                    <div class="card-body">
+                                        <h6 class="card-subtitle mb-2">
+                                            <a href="{% url 'crawler:session_detail' session.pk %}">
+                                                {{ session.name }}
+                                            </a>
+                                        </h6>
+                                        <p class="text-muted small mb-2">
+                                            <i class="bi bi-globe"></i> {{ session.target_domain }}
+                                        </p>
+                                        <div class="progress mb-2" style="height: 20px;">
+                                            <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                                 role="progressbar" 
+                                                 style="width: {{ session.progress_percentage }}%"
+                                                 aria-valuenow="{{ session.progress_percentage }}" 
+                                                 aria-valuemin="0" 
+                                                 aria-valuemax="100">
+                                                {{ session.progress_percentage|floatformat:0 }}%
+                                            </div>
+                                        </div>
+                                        <div class="d-flex justify-content-between small">
+                                            <span>URLs: {{ session.total_urls_processed }}/{{ session.max_pages }}</span>
+                                            <span>Archivos: {{ session.total_files_found }}</span>
+                                        </div>
+                                        <div class="mt-2">
+                                            <button class="btn btn-sm btn-warning" 
+                                                    onclick="pauseSession({{ session.pk }})">
+                                                <i class="bi bi-pause"></i> Pausar
+                                            </button>
+                                            <button class="btn btn-sm btn-danger" 
+                                                    onclick="stopSession({{ session.pk }})">
+                                                <i class="bi bi-stop"></i> Detener
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Sesiones recientes -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Sesiones Recientes</h5>
+                        {% if recent_sessions %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Nombre</th>
+                                        <th>Dominio</th>
+                                        <th>Estado</th>
+                                        <th>Progreso</th>
+                                        <th>Archivos</th>
+                                        <th>Fecha</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for session in recent_sessions %}
+                                    <tr>
+                                        <td>
+                                            <a href="{% url 'crawler:session_detail' session.pk %}">
+                                                {{ session.name|truncatechars:30 }}
+                                            </a>
+                                        </td>
+                                        <td>{{ session.target_domain }}</td>
+                                        <td>
+                                            {% if session.status == 'completed' %}
+                                                <span class="badge bg-success">Completado</span>
+                                            {% elif session.status == 'running' %}
+                                                <span class="badge bg-info">Ejecutando</span>
+                                            {% elif session.status == 'failed' %}
+                                                <span class="badge bg-danger">Fallido</span>
+                                            {% elif session.status == 'pending' %}
+                                                <span class="badge bg-warning">Pendiente</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">{{ session.get_status_display }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ session.total_urls_processed }}/{{ session.max_pages }}</td>
+                                        <td>{{ session.total_files_found }}</td>
+                                        <td>{{ session.created_at|date:"d/m/Y H:i" }}</td>
+                                        <td>
+                                            <a href="{% url 'crawler:session_detail' session.pk %}" 
+                                               class="btn btn-sm btn-primary">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                            {% if session.status == 'pending' %}
+                                            <button class="btn btn-sm btn-success" 
+                                                    onclick="startSession({{ session.pk }})">
+                                                <i class="bi bi-play"></i>
+                                            </button>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <p class="text-muted text-center">No hay sesiones recientes.</p>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -298,223 +284,166 @@
     </section>
 </main>
 
-<!-- Modal para confirmación de detener sesión -->
-<div class="modal fade" id="stopSessionModal" tabindex="-1">
-    <div class="modal-dialog">
+<!-- Modal para nueva sesión -->
+<div class="modal fade" id="newSessionModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Confirmar Detención</h5>
+                <h5 class="modal-title">Nueva Sesión de Crawling</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                ¿Estás seguro de que quieres detener esta sesión de crawling? Esta acción no se puede deshacer.
+                <form id="newSessionForm">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label">Nombre de la Sesión</label>
+                        <input type="text" class="form-control" name="name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">URL Objetivo</label>
+                        <input type="url" class="form-control" name="target_url" 
+                               placeholder="https://example.com" required>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <label class="form-label">Profundidad Máxima</label>
+                            <input type="number" class="form-control" name="max_depth" 
+                                   value="3" min="1" max="10">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Límite de Velocidad (req/s)</label>
+                            <input type="number" class="form-control" name="rate_limit" 
+                                   value="1.0" step="0.1" min="0.1" max="10">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Máximo de Páginas</label>
+                            <input type="number" class="form-control" name="max_pages" 
+                                   value="100" min="10" max="10000">
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <label class="form-label">Tipos de Archivo</label>
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="file_types" 
+                                           value="pdf" id="ft_pdf" checked>
+                                    <label class="form-check-label" for="ft_pdf">PDF</label>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="file_types" 
+                                           value="doc" id="ft_doc" checked>
+                                    <label class="form-check-label" for="ft_doc">DOC</label>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="file_types" 
+                                           value="docx" id="ft_docx" checked>
+                                    <label class="form-check-label" for="ft_docx">DOCX</label>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="file_types" 
+                                           value="xls" id="ft_xls">
+                                    <label class="form-check-label" for="ft_xls">XLS</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <button type="button" class="btn btn-danger" id="confirmStopBtn">Detener Sesión</button>
+                <button type="button" class="btn btn-primary" onclick="createAndStartSession()">
+                    <i class="bi bi-rocket"></i> Crear e Iniciar
+                </button>
             </div>
         </div>
     </div>
 </div>
+
 {% endblock content %}
 
 {% block javascripts %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // Actualizar el valor del rate limit en tiempo real
-    const rateLimitSlider = document.getElementById('rateLimit');
-    const rateLimitValue = document.getElementById('rateLimitValue');
-
-    rateLimitSlider.addEventListener('input', function() {
-        rateLimitValue.textContent = this.value;
-    });
-
-    // Configurar WebSocket para actualizaciones en tiempo real
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/ws/crawler/`;
-
-    let socket;
-
-    function connectWebSocket() {
-        socket = new WebSocket(wsUrl);
-
-        socket.onopen = function(e) {
-            console.log('WebSocket conectado');
-            addLogEntry('Sistema conectado - Monitoreo en tiempo real activo', 'success');
-        };
-
-        socket.onmessage = function(e) {
-            const data = JSON.parse(e.data);
-            handleWebSocketMessage(data);
-        };
-
-        socket.onclose = function(e) {
-            console.log('WebSocket desconectado');
-            addLogEntry('Conexión perdida - Reintentando...', 'warning');
-            // Reconectar después de 3 segundos
-            setTimeout(connectWebSocket, 3000);
-        };
-
-        socket.onerror = function(e) {
-            console.error('Error WebSocket:', e);
-            addLogEntry('Error de conexión', 'error');
-        };
-    }
-
-    // Iniciar conexión WebSocket
-    connectWebSocket();
-
-    // Manejar mensajes del WebSocket
-    function handleWebSocketMessage(data) {
-        switch(data.type) {
-            case 'crawler_stats':
-                updateStats(data.data);
-                break;
-            case 'url_discovered':
-                addLogEntry(`Nueva URL descubierta: ${data.data.url}`, 'info');
-                break;
-            case 'file_processed':
-                addLogEntry(`Archivo procesado: ${data.data.filename} (${data.data.file_type})`, 'success');
-                break;
-            case 'pattern_detected':
-                addLogEntry(`⚠️ Patrón detectado: ${data.data.pattern_type}`, 'warning');
-                break;
-            case 'error':
-                addLogEntry(`❌ Error: ${data.data.message}`, 'error');
-                break;
-        }
-    }
-
-    // Actualizar estadísticas en tiempo real
-    function updateStats(stats) {
-        document.getElementById('activeSessions').textContent = stats.active_sessions || 0;
-        document.getElementById('discoveredUrls').textContent = stats.discovered_urls || 0;
-        document.getElementById('processedFiles').textContent = stats.processed_files || 0;
-        document.getElementById('detectedPatterns').textContent = stats.detected_patterns || 0;
-    }
-
-    // Agregar entrada al log en tiempo real
-    function addLogEntry(message, type) {
-        const logContainer = document.getElementById('realTimeLog');
-        const timestamp = new Date().toLocaleTimeString();
-        const iconClass = {
-            'info': 'bi-info-circle text-info',
-            'success': 'bi-check-circle text-success',
-            'warning': 'bi-exclamation-triangle text-warning',
-            'error': 'bi-x-circle text-danger'
-        }[type] || 'bi-info-circle text-info';
-
-        const logEntry = document.createElement('div');
-        logEntry.className = 'mb-1';
-        logEntry.innerHTML = `
-            <span class="text-muted">[${timestamp}]</span>
-            <i class="bi ${iconClass}"></i>
-            ${message}
-        `;
-
-        logContainer.appendChild(logEntry);
-        logContainer.scrollTop = logContainer.scrollHeight;
-
-        // Mantener máximo 100 entradas
-        const entries = logContainer.children;
-        if (entries.length > 100) {
-            logContainer.removeChild(entries[0]);
-        }
-    }
-
-    // Manejar el formulario de configuración rápida
-    document.getElementById('quickConfigForm').addEventListener('submit', function(e) {
-        e.preventDefault();
-
-        const formData = new FormData(this);
-        const config = {
-            target_domain: document.getElementById('targetDomain').value,
-            max_depth: parseInt(document.getElementById('maxDepth').value),
-            rate_limit: parseFloat(document.getElementById('rateLimit').value),
-            file_types: []
-        };
-
-        // Recopilar tipos de archivo seleccionados
-        document.querySelectorAll('input[type="checkbox"]:checked').forEach(checkbox => {
-            config.file_types.push(checkbox.value);
-        });
-
-        startCrawlSession(config);
-    });
-
-    // Función para iniciar una nueva sesión de crawling
-    async function startCrawlSession(config) {
-        try {
-            const response = await fetch('{% url "crawler:start_new_session" %}', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-                },
-                body: JSON.stringify(config)
-            });
-
-            const result = await response.json();
-
-            if (result.success) {
-                addLogEntry(`Nueva sesión iniciada: ${config.target_domain}`, 'success');
-                // Recargar la página después de 2 segundos para mostrar la nueva sesión
-                setTimeout(() => window.location.reload(), 2000);
-            } else {
-                addLogEntry(`Error al iniciar sesión: ${result.error}`, 'error');
-            }
-        } catch (error) {
-            addLogEntry(`Error de conexión: ${error.message}`, 'error');
-        }
-    }
-});
-
-// Funciones globales para control de sesiones
-async function pauseSession(sessionId) {
-    try {
-        const response = await fetch(`/crawler/sessions/${sessionId}/pause/`, {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-            }
-        });
-
-        if (response.ok) {
-            location.reload();
-        }
-    } catch (error) {
-        console.error('Error pausando sesión:', error);
-    }
-}
-
-let sessionToStop = null;
-
-function stopSession(sessionId) {
-    sessionToStop = sessionId;
-    const modal = new bootstrap.Modal(document.getElementById('stopSessionModal'));
+function showNewSessionModal() {
+    const modal = new bootstrap.Modal(document.getElementById('newSessionModal'));
     modal.show();
 }
 
-document.getElementById('confirmStopBtn').addEventListener('click', async function() {
-    if (!sessionToStop) return;
-
-    try {
-        const response = await fetch(`/crawler/sessions/${sessionToStop}/stop/`, {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-            }
-        });
-
-        if (response.ok) {
-            location.reload();
+function createAndStartSession() {
+    const form = document.getElementById('newSessionForm');
+    const formData = new FormData(form);
+    
+    // Extraer dominio de la URL
+    const url = formData.get('target_url');
+    const domain = new URL(url).hostname;
+    
+    // Preparar datos
+    const data = {
+        name: formData.get('name'),
+        target_url: url,
+        target_domain: domain,
+        max_depth: parseInt(formData.get('max_depth')),
+        rate_limit: parseFloat(formData.get('rate_limit')),
+        max_pages: parseInt(formData.get('max_pages')),
+        file_types: Array.from(formData.getAll('file_types')),
+        respect_robots_txt: true,
+        follow_redirects: true,
+        extract_metadata: true
+    };
+    
+    // Enviar solicitud
+    fetch('{% url "crawler:create_session" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Cerrar modal y redirigir
+            bootstrap.Modal.getInstance(document.getElementById('newSessionModal')).hide();
+            window.location.href = `/crawler/sesiones/${data.session_id}/`;
+        } else {
+            alert('Error: ' + data.error);
         }
-    } catch (error) {
-        console.error('Error deteniendo sesión:', error);
-    }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error al crear la sesión');
+    });
+}
 
-    sessionToStop = null;
-    bootstrap.Modal.getInstance(document.getElementById('stopSessionModal')).hide();
-});
+function startSession(sessionId) {
+    if (confirm('¿Iniciar esta sesión de crawling?')) {
+        window.location.href = `/crawler/sesiones/${sessionId}/iniciar/`;
+    }
+}
+
+function pauseSession(sessionId) {
+    // Implementar lógica de pausa
+    alert('Función de pausa en desarrollo');
+}
+
+function stopSession(sessionId) {
+    if (confirm('¿Detener esta sesión? Esta acción no se puede deshacer.')) {
+        window.location.href = `/crawler/sesiones/${sessionId}/detener/`;
+    }
+}
+
+// Auto-actualizar si hay sesiones activas
+{% if active_sessions %}
+setTimeout(function() {
+    location.reload();
+}, 30000); // Actualizar cada 30 segundos
+{% endif %}
 </script>
 {% endblock javascripts %}
