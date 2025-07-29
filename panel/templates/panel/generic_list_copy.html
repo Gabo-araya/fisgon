@@ -88,7 +88,15 @@
                             {% if item.date %}
                               <span class="badge badge-default">{{ item.date }}</span>
                             {% endif %}
-
+                            {% if item.fk_tipo_inmueble %}
+                              <span class="badge badge-info">{{ item.fk_tipo_inmueble }}</span>
+                            {% endif %}
+                            {% if item.bath_qty %}
+                              <span class="badge badge-success">{{ item.bath_qty }} baños</span>
+                            {% endif %}
+                            {% if item.room_qty %}
+                              <span class="badge badge-primary">{{ item.room_qty }} hab.</span>
+                            {% endif %}
                           </p>
                         </div>
                       </div>

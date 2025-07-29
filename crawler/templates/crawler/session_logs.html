@@ -160,7 +160,7 @@
             <ol class="breadcrumb">
                 <li class="breadcrumb-item"><a href="{% url 'index' %}">Inicio</a></li>
                 <li class="breadcrumb-item"><a href="{% url 'crawler:dashboard' %}">Crawler</a></li>
-                <li class="breadcrumb-item"><a href="{% url 'crawler:session_list' %}">Sesiones</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'crawler:session_list' %}">Sesiones de Crawling</a></li>
                 <li class="breadcrumb-item"><a href="{% url 'crawler:session_detail' session.pk %}">{{ session.name|truncatechars:20 }}</a></li>
                 <li class="breadcrumb-item active">Logs</li>
             </ol>
@@ -360,6 +360,7 @@
                                         </small>
                                     </div>
                                     {% endif %}
+                                    {{ log.details }}
                                 </div>
                             </div>
                             {% empty %}
@@ -422,6 +423,8 @@
             </div>
         </div>
         {% endif %}
+
+
     </section>
 </main>
 

@@ -167,3 +167,5 @@ insumos/
 bkup/
 BKUP/
 .env
+media/
+staticfiles/

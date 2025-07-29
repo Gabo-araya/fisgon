@@ -294,26 +294,47 @@ def stop_session(request, pk):
 
 @login_required(login_url='entrar')
 @allowed_users(allowed_roles=['admin', 'crawler'])
-@require_http_methods(["POST"])
+# @require_http_methods(["POST"])
 def delete_session(request, pk):
     '''Eliminar una sesión de crawling'''
 
     session = get_object_or_404(CrawlSession, pk=pk)
 
-    # Verificar permisos
+    # Verificar permisos de acceso a la sesión
     if not request.user.groups.filter(name='admin').exists() and session.user != request.user:
-        messages.error(request, 'No tienes permisos para eliminar esta sesión.')
-        return redirect('crawler:session_detail', pk=pk)
+        messages.error(request, 'No tienes permisos para realizar esta acción.')
+        # Redirige a una página segura, como la lista de sesiones.
+        return redirect('crawler:session_list')
 
-    if session.status in ['running', 'processing']:
-        messages.error(request, 'No se puede eliminar una sesión en ejecución. Detén la sesión primero.')
-        return redirect('crawler:session_detail', pk=pk)
+    # Si la petición es POST, se procesa la eliminación.
+    if request.method == 'POST':
+        # Validar que la sesión no esté en ejecución antes de eliminar.
+        if session.status in ['running', 'processing']:
+            messages.error(request, 'No se puede eliminar una sesión en ejecución. Detén la sesión primero.')
+            return redirect('crawler:session_detail', pk=pk)
 
-    session_name = session.name
-    session.delete()
+        session_name = session.name
+        session.delete()
+        messages.success(request, f'Sesión "{session_name}" eliminada exitosamente.')
+        return redirect('crawler:session_list') # Redirigir a la lista de sesiones tras eliminar
 
-    messages.success(request, f'Sesión "{session_name}" eliminada exitosamente.')
-    return redirect('crawler:session_list')
+    # Si la petición es GET, se muestra la página de confirmación.
+    info_usuario = info_header_user(request)
+
+    context = {
+        'page' : 'Eliminar Sesión de Crawling',
+        'icon' : 'bi bi-trash',
+        'info_usuario': info_usuario,
+        'singular' : 'sesión',
+        'plural' : 'sesiones',
+        # 'url_listar' : 'listar_',
+        # 'url_crear' : 'crear_articulo',
+        # 'url_ver' : 'ver_articulo',
+        # 'url_editar' : 'modificar_articulo',
+        # 'url_eliminar' : 'eliminar_articulo',
+        'item': session,
+    }
+    return render(request, 'panel/generic_delete_object.html', context)
 
 
 @login_required(login_url='entrar')
@@ -464,6 +485,9 @@ def session_logs(request, pk):
         'available_levels': available_levels,
         'current_level': level,
         'current_search': search,
+        'paginator': paginator,
+        'page_number': page_number,
+        'logs': logs,
         'total_logs': logs.count(),
     }
 

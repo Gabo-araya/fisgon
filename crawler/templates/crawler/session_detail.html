@@ -71,7 +71,7 @@
             <ol class="breadcrumb">
                 <li class="breadcrumb-item"><a href="{% url 'index' %}">Inicio</a></li>
                 <li class="breadcrumb-item"><a href="{% url 'crawler:dashboard' %}">Crawler</a></li>
-                <li class="breadcrumb-item"><a href="{% url 'crawler:session_list' %}">Sesiones</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'crawler:session_list' %}">Sesiones de Crawling</a></li>
                 <li class="breadcrumb-item active">{{ session.name|truncatechars:30 }}</li>
             </ol>
         </nav>
@@ -136,14 +136,14 @@
                             {% endif %}
                             
                             <a href="{% url 'crawler:session_logs' session.pk %}" class="btn btn-secondary">
-                                <i class="bi bi-file-text"></i> Ver Logs Completos
+                                <i class="bi bi-file-text"></i> Ver Logs 
                             </a>
                             
                             {% if request.user == session.user or request.user.groups.filter.name == 'admin' %}
-                            <a href="{% url 'crawler:delete_session' session.pk %}" class="btn btn-outline-danger"
-                               onclick="return confirm('¿Estás seguro de eliminar esta sesión? Esta acción no se puede deshacer.');">
+                            <a href="{% url 'crawler:delete_session' session.pk %}" class="btn btn-outline-danger">
                                 <i class="bi bi-trash"></i> Eliminar
                             </a>
+
                             {% endif %}
                         </div>
                     </div>
@@ -429,6 +429,7 @@
                             
                             <!-- Logs Recientes -->
                             <div class="tab-pane fade" id="logs" role="tabpanel">
+
                                 {% if recent_logs %}
                                 <div style="max-height: 400px; overflow-y: auto;">
                                     {% for log in recent_logs %}
