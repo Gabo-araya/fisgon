@@ -48,6 +48,7 @@ django-htmx==1.17.2
 # WebSockets (para actualizaciones en tiempo real)
 channels==4.0.0
 channels-redis==4.1.0
+daphne==4.2.1
 
 # Monitoreo
 flower==2.0.1

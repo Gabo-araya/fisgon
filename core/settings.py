@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
+    'daphne', # Debe ir ANTES de django.contrib.staticfiles
     'whitenoise.runserver_nostatic', #para servir archivos estáticos
     'django.contrib.staticfiles',
 
@@ -51,6 +52,7 @@ INSTALLED_APPS = [
     'allauth.account',
     'allauth.socialaccount',
     'django_htmx',
+    'channels',
 
     # Apps
     'panel.apps.PanelConfig',
@@ -153,6 +155,9 @@ USE_I18N = True
 USE_TZ = True
 
 
+#=================================================
+
+
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
@@ -172,6 +177,10 @@ os.makedirs(STATIC_ROOT, exist_ok=True)
 MEDIA_URL = 'media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media/')
 
+
+#=================================================
+
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
@@ -185,6 +194,24 @@ ACCOUNT_EMAIL_REQUIRED = True
 
 
 # MAIL_HOST_USER = config('EMAIL_HOST_USER', default='correo@ejemplo.com')
+
+
+#=================================================
+
+# Configuración de Channels
+ASGI_APPLICATION = 'core.asgi.application'
+
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            "hosts": [('127.0.0.1', 6379)],
+        },
+    },
+}
+
+
+
 
 # Celery Configuration
 CELERY_BROKER_URL = config('CELERY_BROKER_URL', default='redis://localhost:6379/0')
