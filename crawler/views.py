@@ -1,3 +1,4 @@
+import os
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -17,8 +18,16 @@ from .tasks import start_crawl_session, stop_crawl_session
 
 
 @login_required(login_url='entrar')
-@allowed_users(allowed_roles=['admin', 'crawler'])
+@allowed_users(allowed_roles=['admin', 'crawler, viewer'])
 def crawler_dashboard(request):
+    '''Dashboard principal del crawler'''
+
+    return redirect('index')
+
+
+@login_required(login_url='entrar')
+@allowed_users(allowed_roles=['admin', 'crawler'])
+def crawler_dashboard_old(request):
     '''Dashboard principal del crawler'''
 
     # Estadísticas generales
@@ -653,7 +662,8 @@ def crawler_stats(request):
     ).order_by('-count')[:10]
 
     # Actividad por mes (últimos 12 meses)
-    from django.db.models import TruncMonth
+    from django.db.models.functions import TruncMonth
+
     monthly_stats = sessions.filter(
         created_at__gte=timezone.now() - timezone.timedelta(days=365)
     ).annotate(
@@ -689,6 +699,41 @@ def crawler_stats(request):
 @login_required(login_url='entrar')
 @allowed_users(allowed_roles=['admin', 'crawler', 'viewer'])
 def export_results(request, pk):
+    '''Exportar resultados de crawling con opción de incluir metadatos'''
+    
+    session = get_object_or_404(CrawlSession, pk=pk)
+    
+    # Verificar acceso
+    if session.user != request.user and not request.user.groups.filter(name='admin').exists():
+        messages.error(request, 'No tienes permisos para exportar esta sesión.')
+        return redirect('crawler:dashboard')
+    
+    # Parámetros de exportación
+    export_format = request.GET.get('format', 'csv')
+    include_metadata = request.GET.get('include_metadata', '0') == '1'
+    include_analysis = request.GET.get('include_analysis', '0') == '1'
+    report_type = request.GET.get('report_type', 'standard')
+    
+    try:
+        if export_format == 'csv':
+            return export_csv_with_metadata(session, include_metadata)
+        elif export_format == 'json':
+            return export_json_with_metadata(session, include_metadata, include_analysis)
+        elif export_format == 'pdf':
+            return export_pdf_report(session, report_type, include_metadata)
+        else:
+            messages.error(request, 'Formato de exportación no válido.')
+            return redirect('crawler:session_detail', pk=pk)
+            
+    except Exception as e:
+        logger.error(f"Error exportando resultados: {str(e)}")
+        messages.error(request, f"Error exportando: {str(e)}")
+        return redirect('crawler:session_detail', pk=pk)
+
+
+@login_required(login_url='entrar')
+@allowed_users(allowed_roles=['admin', 'crawler', 'viewer'])
+def export_results_old(request, pk):
     '''Exportar resultados de una sesión a CSV'''
 
     session = get_object_or_404(CrawlSession, pk=pk)
@@ -781,3 +826,461 @@ def api_dashboard_stats(request):
     }
 
     return JsonResponse(data)
+
+
+@login_required(login_url='entrar')
+@allowed_users(allowed_roles=['admin', 'crawler', 'viewer'])
+def file_metadata_detail(request, result_id):
+    '''Vista detallada de metadatos de un archivo específico'''
+    
+    result = get_object_or_404(CrawlResult, id=result_id)
+    
+    # Verificar que el usuario tenga acceso a esta sesión
+    if result.session.user != request.user and not request.user.groups.filter(name='admin').exists():
+        messages.error(request, 'No tienes permisos para ver este archivo.')
+        return redirect('crawler:dashboard')
+    
+    # Organizar metadatos por categorías
+    metadata_categories = {}
+    
+    if result.metadata:
+        for key, value in result.metadata.items():
+            if key.endswith('_metadata'):
+                # Es una categoría de metadatos (pdf_metadata, office_metadata, etc.)
+                category_name = key.replace('_metadata', '').title()
+                metadata_categories[category_name] = value
+            elif key in ['file_path', 'file_url', 'referrer', 'file_size', 'file_hash_sha256']:
+                # Información básica del archivo
+                if 'Información Básica' not in metadata_categories:
+                    metadata_categories['Información Básica'] = {}
+                metadata_categories['Información Básica'][key] = value
+            else:
+                # Otros metadatos
+                if 'Otros' not in metadata_categories:
+                    metadata_categories['Otros'] = {}
+                metadata_categories['Otros'][key] = value
+    
+    info_user = info_header_user(request)
+    
+    context = {
+        'page': f'Metadatos - {result.file_name}',
+        'icon': 'bi bi-file-earmark-text',
+        'info_user': info_user,
+        'result': result,
+        'metadata_categories': metadata_categories,
+        'session': result.session,
+    }
+    
+    return render(request, 'crawler/file_metadata_detail.html', context)
+
+
+
+@login_required(login_url='entrar')
+@allowed_users(allowed_roles=['admin', 'crawler', 'viewer'])
+def session_metadata_summary(request, pk):
+    '''Vista resumen de metadatos de una sesión'''
+    
+    session = get_object_or_404(CrawlSession, pk=pk)
+    
+    # Verificar acceso
+    if session.user != request.user and not request.user.groups.filter(name='admin').exists():
+        messages.error(request, 'No tienes permisos para ver esta sesión.')
+        return redirect('crawler:dashboard')
+    
+    # Estadísticas de metadatos
+    results_with_metadata = CrawlResult.objects.filter(
+        session=session
+    ).exclude(metadata={})
+    
+    # Contar tipos de archivo
+    file_types_stats = {}
+    authors_found = set()
+    software_found = set()
+    dates_found = []
+    
+    for result in results_with_metadata:
+        # Tipo de archivo
+        file_ext = os.path.splitext(result.file_name)[1].lower()
+        file_types_stats[file_ext] = file_types_stats.get(file_ext, 0) + 1
+        
+        # Extraer información interesante
+        metadata = result.metadata
+        
+        # Autores
+        for category in ['pdf_metadata', 'office_metadata']:
+            if category in metadata:
+                if 'author' in metadata[category]:
+                    authors_found.add(metadata[category]['author'])
+                if 'creator' in metadata[category]:
+                    authors_found.add(metadata[category]['creator'])
+        
+        # Software
+        for category in ['pdf_metadata', 'office_metadata', 'exif_metadata']:
+            if category in metadata:
+                if 'producer' in metadata[category]:
+                    software_found.add(metadata[category]['producer'])
+                if 'software' in metadata[category]:
+                    software_found.add(metadata[category]['software'])
+                if 'creator' in metadata[category] and 'Microsoft' in str(metadata[category]['creator']):
+                    software_found.add(metadata[category]['creator'])
+        
+        # Fechas de creación
+        for category in ['pdf_metadata', 'office_metadata']:
+            if category in metadata:
+                if 'creation_date' in metadata[category]:
+                    dates_found.append(metadata[category]['creation_date'])
+                if 'created' in metadata[category]:
+                    dates_found.append(metadata[category]['created'])
+    
+    # Top 10 más frecuentes
+    top_authors = sorted(list(authors_found))[:10]
+    top_software = sorted(list(software_found))[:10]
+    
+    stats = {
+        'total_files_with_metadata': results_with_metadata.count(),
+        'file_types_distribution': file_types_stats,
+        'unique_authors_count': len(authors_found),
+        'unique_software_count': len(software_found),
+        'top_authors': top_authors,
+        'top_software': top_software,
+    }
+    
+    info_user = info_header_user(request)
+    
+    context = {
+        'page': f'Resumen Metadatos - {session.name}',
+        'icon': 'bi bi-graph-up',
+        'info_user': info_user,
+        'session': session,
+        'stats': stats,
+        'results_with_metadata': results_with_metadata[:20],  # Mostrar solo los primeros 20
+    }
+    
+    return render(request, 'crawler/session_metadata_summary.html', context)
+
+
+
+@login_required(login_url='entrar')
+@allowed_users(allowed_roles=['admin', 'crawler', 'viewer'])
+def session_advanced_analysis(request, pk):
+    '''Vista de análisis avanzado de metadatos con evaluación de riesgos'''
+    
+    session = get_object_or_404(CrawlSession, pk=pk)
+    
+    # Verificar acceso
+    if session.user != request.user and not request.user.groups.filter(name='admin').exists():
+        messages.error(request, 'No tienes permisos para ver esta sesión.')
+        return redirect('crawler:dashboard')
+    
+    try:
+        # Importar y ejecutar análisis
+        from .metadata_utils import analyze_session_metadata
+        analysis = analyze_session_metadata(session)
+        
+        if 'error' in analysis:
+            messages.warning(request, analysis['error'])
+            return redirect('crawler:session_detail', pk=pk)
+        
+        # Preparar datos para gráficos
+        chart_data = prepare_chart_data(analysis)
+        
+    except Exception as e:
+        logger.error(f"Error ejecutando análisis avanzado: {str(e)}")
+        messages.error(request, f"Error ejecutando análisis: {str(e)}")
+        return redirect('crawler:session_detail', pk=pk)
+    
+    info_user = info_header_user(request)
+    
+    context = {
+        'page': f'Análisis Avanzado - {session.name}',
+        'icon': 'bi bi-graph-up-arrow',
+        'info_user': info_user,
+        'session': session,
+        'analysis': analysis,
+        'chart_data': chart_data,
+    }
+    
+    return render(request, 'crawler/session_advanced_analysis.html', context)
+
+
+def prepare_chart_data(analysis):
+    '''Prepara datos para visualizaciones interactivas'''
+    chart_data = {}
+    
+    # Datos para gráfico de software
+    software_analysis = analysis.get('software_analysis', {})
+    if 'most_common_software' in software_analysis:
+        software_labels = [item[0][:30] for item in software_analysis['most_common_software'][:10]]
+        software_counts = [item[1] for item in software_analysis['most_common_software'][:10]]
+        
+        chart_data['software_chart'] = {
+            'labels': software_labels,
+            'data': software_counts,
+            'backgroundColor': [
+                '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0',
+                '#9966FF', '#FF9F40', '#FF6384', '#C9CBCF',
+                '#4BC0C0', '#FF6384'
+            ]
+        }
+    
+    # Datos para gráfico temporal
+    temporal_analysis = analysis.get('temporal_analysis', {})
+    if 'activity_by_month' in temporal_analysis:
+        months = sorted(temporal_analysis['activity_by_month'].keys())
+        activity_counts = [temporal_analysis['activity_by_month'][month] for month in months]
+        
+        chart_data['temporal_chart'] = {
+            'labels': months,
+            'data': activity_counts,
+            'borderColor': '#36A2EB',
+            'backgroundColor': 'rgba(54, 162, 235, 0.2)'
+        }
+    
+    # Datos para gráfico de riesgos
+    security_risks = analysis.get('risk_assessment', {})
+    privacy_risks = analysis.get('privacy_assessment', {})
+    
+    chart_data['risk_chart'] = {
+        'labels': ['Seguridad', 'Privacidad'],
+        'data': [
+            security_risks.get('overall_risk_score', 0),
+            privacy_risks.get('overall_privacy_score', 0)
+        ],
+        'backgroundColor': ['#FF6384', '#FF9F40'],
+        'borderColor': ['#FF6384', '#FF9F40']
+    }
+    
+    return chart_data
+
+
+def export_csv_with_metadata(session, include_metadata=False):
+    '''Exporta resultados a CSV con opción de incluir metadatos'''
+    import csv
+    from django.http import HttpResponse
+    
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="crawl_results_{session.id}_{timezone.now().strftime("%Y%m%d_%H%M%S")}.csv"'
+    
+    writer = csv.writer(response)
+    
+    # Headers básicos
+    headers = [
+        'URL', 'Referrer', 'Tipo_Archivo', 'Tamaño_Bytes', 'Estado_HTTP',
+        'Tiempo_Respuesta', 'Descubierto_En', 'Procesado_En', 'Profundidad'
+    ]
+    
+    # Headers adicionales si se incluyen metadatos
+    if include_metadata:
+        headers.extend([
+            'Tiene_Metadatos', 'Autor', 'Creador', 'Fecha_Creacion', 
+            'Fecha_Modificacion', 'Software_Usado', 'Titulo', 'Coordenadas_GPS',
+            'Hash_Archivo', 'Metadatos_JSON'
+        ])
+    
+    writer.writerow(headers)
+    
+    # Obtener resultados
+    url_items = URLQueue.objects.filter(session=session).select_related().order_by('discovered_at')
+    
+    for url_item in url_items:
+        row = [
+            url_item.url,
+            url_item.referrer or '',
+            url_item.url_type or '',
+            url_item.file_size or 0,
+            url_item.http_status_code or '',
+            url_item.response_time or 0,
+            url_item.discovered_at.isoformat() if url_item.discovered_at else '',
+            url_item.processed_at.isoformat() if url_item.processed_at else '',
+            url_item.depth
+        ]
+        
+        if include_metadata:
+            # Buscar resultado asociado con metadatos
+            try:
+                result = CrawlResult.objects.get(url_queue_item=url_item)
+                metadata = result.metadata or {}
+                
+                # Extraer campos específicos de metadatos
+                author = ''
+                creator = ''
+                creation_date = ''
+                modification_date = ''
+                software = ''
+                title = result.title or ''
+                gps_coords = ''
+                file_hash = result.file_hash or ''
+                
+                # Buscar en diferentes categorías de metadatos
+                for category in ['pdf_metadata', 'office_metadata', 'exif_metadata']:
+                    if category in metadata:
+                        cat_data = metadata[category]
+                        
+                        if not author and 'author' in cat_data:
+                            author = str(cat_data['author'])
+                        if not creator and 'creator' in cat_data:
+                            creator = str(cat_data['creator'])
+                        if not creation_date and 'creation_date' in cat_data:
+                            creation_date = str(cat_data['creation_date'])
+                        elif not creation_date and 'created' in cat_data:
+                            creation_date = str(cat_data['created'])
+                        if not modification_date and 'modification_date' in cat_data:
+                            modification_date = str(cat_data['modification_date'])
+                        elif not modification_date and 'modified' in cat_data:
+                            modification_date = str(cat_data['modified'])
+                        if not software and 'producer' in cat_data:
+                            software = str(cat_data['producer'])
+                        elif not software and 'software' in cat_data:
+                            software = str(cat_data['software'])
+                        
+                        # GPS específico para EXIF
+                        if category == 'exif_metadata' and 'gps_coordinates' in cat_data:
+                            gps_data = cat_data['gps_coordinates']
+                            if isinstance(gps_data, dict) and 'coordinates_string' in gps_data:
+                                gps_coords = gps_data['coordinates_string']
+                
+                row.extend([
+                    'Sí' if metadata else 'No',
+                    author,
+                    creator,
+                    creation_date,
+                    modification_date,
+                    software,
+                    title,
+                    gps_coords,
+                    file_hash,
+                    json.dumps(metadata, ensure_ascii=False) if metadata else ''
+                ])
+                
+            except CrawlResult.DoesNotExist:
+                row.extend(['No', '', '', '', '', '', '', '', '', ''])
+        
+        writer.writerow(row)
+    
+    return response
+
+
+def export_json_with_metadata(session, include_metadata=False, include_analysis=False):
+    '''Exporta resultados a JSON con metadatos y análisis'''
+    from django.http import JsonResponse
+    import json
+    
+    data = {
+        'session_info': {
+            'id': session.id,
+            'name': session.name,
+            'target_domain': session.target_domain,
+            'target_url': session.target_url,
+            'status': session.status,
+            'created_at': session.created_at.isoformat(),
+            'started_at': session.started_at.isoformat() if session.started_at else None,
+            'completed_at': session.completed_at.isoformat() if session.completed_at else None,
+            'total_urls_processed': session.total_urls_processed,
+            'total_files_found': session.total_files_found,
+        },
+        'urls_discovered': []
+    }
+    
+    # URLs descubiertas
+    url_items = URLQueue.objects.filter(session=session).select_related()
+    
+    for url_item in url_items:
+        url_data = {
+            'url': url_item.url,
+            'referrer': url_item.referrer,
+            'parent_url': url_item.parent_url,
+            'depth': url_item.depth,
+            'url_type': url_item.url_type,
+            'file_size': url_item.file_size,
+            'content_type': url_item.content_type,
+            'status': url_item.status,
+            'http_status_code': url_item.http_status_code,
+            'response_time': url_item.response_time,
+            'discovered_at': url_item.discovered_at.isoformat() if url_item.discovered_at else None,
+            'processed_at': url_item.processed_at.isoformat() if url_item.processed_at else None,
+            'has_metadata': url_item.has_metadata,
+        }
+        
+        # Incluir metadatos si se solicita
+        if include_metadata:
+            try:
+                result = CrawlResult.objects.get(url_queue_item=url_item)
+                url_data['metadata'] = result.metadata
+                url_data['file_hash'] = result.file_hash
+                url_data['file_path'] = result.file_path
+                url_data['title'] = result.title
+                url_data['description'] = result.description
+                url_data['keywords'] = result.keywords
+            except CrawlResult.DoesNotExist:
+                url_data['metadata'] = None
+        
+        data['urls_discovered'].append(url_data)
+    
+    # Incluir análisis avanzado si se solicita
+    if include_analysis:
+        try:
+            from .metadata_utils import analyze_session_metadata
+            analysis = analyze_session_metadata(session)
+            data['advanced_analysis'] = analysis
+        except Exception as e:
+            data['analysis_error'] = str(e)
+    
+    # Crear respuesta JSON
+    response = JsonResponse(data, json_dumps_params={'ensure_ascii': False, 'indent': 2})
+    response['Content-Disposition'] = f'attachment; filename="crawl_export_{session.id}_{timezone.now().strftime("%Y%m%d_%H%M%S")}.json"'
+    
+    return response
+
+
+def export_pdf_report(session, report_type='standard', include_metadata=False):
+    '''Genera reporte PDF con metadatos'''
+    from django.http import HttpResponse
+    from django.template.loader import get_template
+    
+    try:
+        # Intentar importar librería PDF
+        from xhtml2pdf import pisa
+        pdf_available = True
+    except ImportError:
+        pdf_available = False
+    
+    if not pdf_available:
+        messages.error(request, 'Librería PDF no disponible. Instalar con: pip install xhtml2pdf')
+        return redirect('crawler:session_detail', pk=session.pk)
+    
+    # Preparar datos según tipo de reporte
+    context = {
+        'session': session,
+        'generated_at': timezone.now(),
+        'include_metadata': include_metadata,
+    }
+    
+    if report_type == 'security':
+        # Reporte de seguridad con análisis de riesgos
+        try:
+            from .metadata_utils import analyze_session_metadata
+            analysis = analyze_session_metadata(session)
+            context['analysis'] = analysis
+            template_name = 'crawler/reports/security_report.html'
+        except Exception as e:
+            context['analysis_error'] = str(e)
+            template_name = 'crawler/reports/basic_report.html'
+    else:
+        # Reporte estándar
+        results = CrawlResult.objects.filter(session=session).select_related('url_queue_item')
+        context['results'] = results
+        template_name = 'crawler/reports/standard_report.html'
+    
+    # Generar PDF
+    template = get_template(template_name)
+    html = template.render(context)
+    
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="crawl_report_{session.id}_{timezone.now().strftime("%Y%m%d_%H%M%S")}.pdf"'
+    
+    pisa_status = pisa.CreatePDF(html, dest=response)
+    
+    if pisa_status.err:
+        return HttpResponse('Error generando PDF', status=500)
+    
+    return response

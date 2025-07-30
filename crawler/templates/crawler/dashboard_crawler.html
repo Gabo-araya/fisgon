@@ -122,10 +122,12 @@
                         <h5 class="card-title">Acciones Rápidas</h5>
                         <div class="row g-3">
                             <div class="col-md-3">
-                                <div class="card quick-action-card text-center p-3" onclick="showNewSessionModal()">
-                                    <i class="bi bi-plus-circle display-4 text-primary"></i>
-                                    <h6 class="mt-2">Nueva Sesión</h6>
-                                </div>
+                                <a href="{% url 'crawler:create_session' %}" class="text-decoration-none">
+                                    <div class="card quick-action-card text-center p-3">
+                                        <i class="bi bi-plus-circle display-4 text-primary"></i>
+                                        <h6 class="mt-2">Nueva Sesión</h6>
+                                    </div>
+                                </a>
                             </div>
                             <div class="col-md-3">
                                 <a href="{% url 'crawler:session_list' %}" class="text-decoration-none">
@@ -168,20 +170,22 @@
                             {% for session in active_sessions %}
                             <div class="col-md-6">
                                 <div class="card session-card session-{{ session.status }}">
-                                    <div class="card-body">
+                                    <div class="card-header">
                                         <h6 class="card-subtitle mb-2">
                                             <a href="{% url 'crawler:session_detail' session.pk %}">
                                                 {{ session.name }}
                                             </a>
                                         </h6>
+                                    </div>
+                                    <div class="card-body">
                                         <p class="text-muted small mb-2">
                                             <i class="bi bi-globe"></i> {{ session.target_domain }}
                                         </p>
                                         <div class="progress mb-2" style="height: 20px;">
                                             <div class="progress-bar progress-bar-striped progress-bar-animated" 
                                                  role="progressbar" 
-                                                 style="width: {{ session.progress_percentage }}%"
-                                                 aria-valuenow="{{ session.progress_percentage }}" 
+                                                 style="width: {{ session.progress_percentage|floatformat:0 }}%"
+                                                 aria-valuenow="{{ session.progress_percentage|floatformat:0 }}" 
                                                  aria-valuemin="0" 
                                                  aria-valuemax="100">
                                                 {{ session.progress_percentage|floatformat:0 }}%

@@ -1,0 +1,421 @@
+{% extends "panel/base_admin.html" %}
+{% load static %}
+
+{% block title %}{{ page }}{% endblock %}
+
+{% block stylesheets %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+.risk-card {
+    transition: transform 0.2s;
+}
+.risk-card:hover {
+    transform: translateY(-2px);
+}
+.risk-low { border-left: 4px solid #28a745; }
+.risk-medium { border-left: 4px solid #ffc107; }
+.risk-high { border-left: 4px solid #fd7e14; }
+.risk-critical { border-left: 4px solid #dc3545; }
+</style>
+{% endblock stylesheets %}
+
+{% block content %}
+
+<main id="main" class="main">
+    <div class="pagetitle">
+        <h1>{{ page }}</h1>
+        {% include 'panel/breadcrumb.html' %}
+    </div>
+    <!-- End Page Title -->
+
+    <section class="section">
+        <!-- col-8 / col-4 -->
+        <div class="container-fluid py-4">
+            <!-- Header -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-body">
+                            <h3 class="card-title">
+                                <i class="{{ icon }}"></i> {{ page }}
+                            </h3>
+                            <p class="text-muted">Análisis avanzado de metadatos con evaluación de riesgos de seguridad y privacidad</p>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p><strong>Sesión:</strong> {{ session.name }}</p>
+                                    <p><strong>Dominio:</strong> {{ session.target_domain }}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p><strong>Estado:</strong> 
+                                        <span class="badge bg-{{ session.status|yesno:'success,warning,danger' }}">
+                                            {{ session.get_status_display }}
+                                        </span>
+                                    </p>
+                                    <p><strong>Archivos procesados:</strong> {{ session.total_files_found }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Resumen de riesgos -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="card risk-card risk-{{ analysis.risk_assessment.risk_level|lower }}">
+                        <div class="card-body text-center">
+                            <h2 class="display-4 text-danger">{{ analysis.risk_assessment.overall_risk_score }}/10</h2>
+                            <h5>Riesgo de Seguridad</h5>
+                            <span class="badge bg-danger">{{ analysis.risk_assessment.risk_level }}</span>
+                            <p class="mt-2 text-muted">{{ analysis.risk_assessment.total_risk_factors }} factores identificados</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card risk-card risk-{{ analysis.privacy_assessment.privacy_level|lower }}">
+                        <div class="card-body text-center">
+                            <h2 class="display-4 text-warning">{{ analysis.privacy_assessment.overall_privacy_score }}/10</h2>
+                            <h5>Riesgo de Privacidad</h5>
+                            <span class="badge bg-warning">{{ analysis.privacy_assessment.privacy_level }}</span>
+                            <p class="mt-2 text-muted">{{ analysis.privacy_assessment.total_privacy_factors }} factores identificados</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Gráficos -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="bi bi-pie-chart"></i> Software Más Utilizado</h5>
+                        </div>
+                        <div class="card-body">
+                            {% if chart_data.software_chart %}
+                            <canvas id="softwareChart" height="200"></canvas>
+                            {% else %}
+                            <p class="text-muted">No hay datos de software disponibles</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="bi bi-graph-up"></i> Actividad Temporal</h5>
+                        </div>
+                        <div class="card-body">
+                            {% if chart_data.temporal_chart %}
+                            <canvas id="temporalChart" height="200"></canvas>
+                            {% else %}
+                            <p class="text-muted">No hay datos temporales disponibles</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Análisis detallado de riesgos -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="bi bi-shield-exclamation"></i> Factores de Riesgo Identificados</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <!-- Riesgos de seguridad -->
+                                <div class="col-md-6">
+                                    <h6 class="text-danger"><i class="bi bi-shield-x"></i> Riesgos de Seguridad</h6>
+                                    {% for risk in analysis.risk_assessment.identified_risks %}
+                                    <div class="alert alert-danger alert-dismissible" role="alert">
+                                        <strong>{{ risk.type|title }}:</strong> {{ risk.description }}
+                                        <br><small><strong>Recomendación:</strong> {{ risk.recommendation }}</small>
+                                        <div class="mt-2">
+                                            <span class="badge bg-danger">Nivel {{ risk.level }}/10</span>
+                                            <span class="badge bg-secondary">{{ risk.affected_items }} elementos afectados</span>
+                                        </div>
+                                    </div>
+                                    {% empty %}
+                                    <div class="alert alert-success">
+                                        <i class="bi bi-check-circle"></i> No se identificaron riesgos de seguridad significativos.
+                                    </div>
+                                    {% endfor %}
+                                </div>
+
+                                <!-- Riesgos de privacidad -->
+                                <div class="col-md-6">
+                                    <h6 class="text-warning"><i class="bi bi-eye-slash"></i> Riesgos de Privacidad</h6>
+                                    {% for risk in analysis.privacy_assessment.identified_privacy_risks %}
+                                    <div class="alert alert-warning alert-dismissible" role="alert">
+                                        <strong>{{ risk.type|title }}:</strong> {{ risk.description }}
+                                        <br><small><strong>Recomendación:</strong> {{ risk.recommendation }}</small>
+                                        <div class="mt-2">
+                                            <span class="badge bg-warning">Nivel {{ risk.level }}/10</span>
+                                            <span class="badge bg-secondary">{{ risk.affected_items }} elementos afectados</span>
+                                        </div>
+                                    </div>
+                                    {% empty %}
+                                    <div class="alert alert-success">
+                                        <i class="bi bi-check-circle"></i> No se identificaron riesgos de privacidad significativos.
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Análisis de autores -->
+            {% if analysis.authors_analysis %}
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="bi bi-people"></i> Análisis de Autores</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-6 text-center">
+                                    <h3 class="text-primary">{{ analysis.authors_analysis.total_unique_authors }}</h3>
+                                    <p class="text-muted">Autores Únicos</p>
+                                </div>
+                                <div class="col-6 text-center">
+                                    <h3 class="text-success">{{ analysis.authors_analysis.total_unique_creators }}</h3>
+                                    <p class="text-muted">Creadores Únicos</p>
+                                </div>
+                            </div>
+                            
+                            {% if analysis.authors_analysis.email_addresses_found %}
+                            <div class="alert alert-warning mt-3">
+                                <strong><i class="bi bi-envelope-exclamation"></i> Emails encontrados:</strong>
+                                <ul class="mb-0 mt-2">
+                                    {% for email in analysis.authors_analysis.email_addresses_found %}
+                                    <li><code>{{ email }}</code></li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                            {% endif %}
+
+                            {% if analysis.authors_analysis.high_activity_authors %}
+                            <div class="alert alert-info mt-3">
+                                <strong><i class="bi bi-person-check"></i> Usuarios muy activos:</strong>
+                                <ul class="mb-0 mt-2">
+                                    {% for author in analysis.authors_analysis.high_activity_authors %}
+                                    <li>{{ author }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="bi bi-gear"></i> Análisis de Software</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-6 text-center">
+                                    <h3 class="text-info">{{ analysis.software_analysis.total_software_detected }}</h3>
+                                    <p class="text-muted">Software Detectado</p>
+                                </div>
+                                <div class="col-6 text-center">
+                                    <h3 class="text-danger">{{ analysis.software_analysis.outdated_software|length }}</h3>
+                                    <p class="text-muted">Software Desactualizado</p>
+                                </div>
+                            </div>
+
+                            {% if analysis.software_analysis.outdated_software %}
+                            <div class="alert alert-danger mt-3">
+                                <strong><i class="bi bi-exclamation-triangle"></i> Software desactualizado:</strong>
+                                <ul class="mb-0 mt-2">
+                                    {% for software in analysis.software_analysis.outdated_software %}
+                                    <li>
+                                        {{ software.software }} 
+                                        <span class="badge bg-danger">{{ software.age_years }} años</span>
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Información de ubicación -->
+            {% if analysis.location_analysis.total_files_with_gps > 0 %}
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="bi bi-geo-alt"></i> Análisis de Ubicación GPS</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-4 text-center">
+                                    <h3 class="text-warning">{{ analysis.location_analysis.total_files_with_gps }}</h3>
+                                    <p class="text-muted">Archivos con GPS</p>
+                                </div>
+                                <div class="col-md-4 text-center">
+                                    <h3 class="text-info">{{ analysis.location_analysis.unique_locations }}</h3>
+                                    <p class="text-muted">Ubicaciones Únicas</p>
+                                </div>
+                                <div class="col-md-4 text-center">
+                                    {% if analysis.location_analysis.location_clusters %}
+                                        <h3 class="text-danger">{{ analysis.location_analysis.location_clusters|length }}</h3>
+                                        <p class="text-muted">Clusters Detectados</p>
+                                    {% else %}
+                                        <h3 class="text-success">0</h3>
+                                        <p class="text-muted">Clusters Detectados</p>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            {% if analysis.location_analysis.coordinates_found %}
+                            <div class="alert alert-warning">
+                                <strong><i class="bi bi-exclamation-triangle"></i> Coordenadas GPS expuestas:</strong>
+                                <p class="mb-0 mt-2">Se encontraron coordenadas GPS en los metadatos de las imágenes. Esto puede revelar ubicaciones sensibles.</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Análisis temporal -->
+            {% if analysis.temporal_analysis %}
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="bi bi-clock-history"></i> Análisis Temporal</h5>
+                        </div>
+                        <div class="card-body">
+                            {% if analysis.temporal_analysis.creation_date_range %}
+                            <div class="row">
+                                <div class="col-md-4 text-center">
+                                    <h6>Primer Documento</h6>
+                                    <p class="text-muted">{{ analysis.temporal_analysis.creation_date_range.earliest|date:"d/m/Y" }}</p>
+                                </div>
+                                <div class="col-md-4 text-center">
+                                    <h6>Último Documento</h6>
+                                    <p class="text-muted">{{ analysis.temporal_analysis.creation_date_range.latest|date:"d/m/Y" }}</p>
+                                </div>
+                                <div class="col-md-4 text-center">
+                                    <h6>Período Total</h6>
+                                    <p class="text-muted">{{ analysis.temporal_analysis.creation_date_range.span_days }} días</p>
+                                </div>
+                            </div>
+                            {% endif %}
+
+                            {% if analysis.temporal_analysis.high_activity_periods %}
+                            <div class="alert alert-info mt-3">
+                                <strong><i class="bi bi-graph-up"></i> Períodos de alta actividad detectados:</strong>
+                                <ul class="mb-0 mt-2">
+                                    {% for period in analysis.temporal_analysis.high_activity_periods %}
+                                    <li>{{ period.period }}: {{ period.activity_count }} documentos</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Acciones -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="d-flex gap-2">
+                        <a href="{% url 'crawler:session_detail' session.pk %}" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left"></i> Volver a Sesión
+                        </a>
+                        <a href="{% url 'crawler:session_metadata_summary' session.pk %}" class="btn btn-info">
+                            <i class="bi bi-list"></i> Resumen Simple
+                        </a>
+                        <button class="btn btn-success" onclick="exportAnalysis()">
+                            <i class="bi bi-download"></i> Exportar Análisis
+                        </button>
+                        <button class="btn btn-danger" onclick="generateSecurityReport()">
+                            <i class="bi bi-file-pdf"></i> Reporte de Seguridad
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- end row -->
+    </section>
+</main>
+<!-- End #main -->
+
+{% endblock content %}
+
+{% block javascripts %}
+<script>
+// Configurar gráficos
+{% if chart_data.software_chart %}
+const softwareCtx = document.getElementById('softwareChart').getContext('2d');
+new Chart(softwareCtx, {
+    type: 'doughnut',
+    data: {
+        labels: {{ chart_data.software_chart.labels|safe }},
+        datasets: [{
+            data: {{ chart_data.software_chart.data|safe }},
+            backgroundColor: {{ chart_data.software_chart.backgroundColor|safe }}
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom'
+            }
+        }
+    }
+});
+{% endif %}
+
+{% if chart_data.temporal_chart %}
+const temporalCtx = document.getElementById('temporalChart').getContext('2d');
+new Chart(temporalCtx, {
+    type: 'line',
+    data: {
+        labels: {{ chart_data.temporal_chart.labels|safe }},
+        datasets: [{
+            label: 'Documentos Creados',
+            data: {{ chart_data.temporal_chart.data|safe }},
+            borderColor: '{{ chart_data.temporal_chart.borderColor }}',
+            backgroundColor: '{{ chart_data.temporal_chart.backgroundColor }}',
+            tension: 0.4
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+            y: {
+                beginAtZero: true
+            }
+        }
+    }
+});
+{% endif %}
+
+function exportAnalysis() {
+    window.location.href = "{% url 'crawler:export_results' session.pk %}?format=json&include_analysis=1";
+}
+
+function generateSecurityReport() {
+    window.location.href = "{% url 'crawler:export_results' session.pk %}?format=pdf&report_type=security";
+}
+</script>
+{% endblock javascripts %}

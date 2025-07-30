@@ -2709,3 +2709,14 @@ fieldset:disabled a.btn {
     font-size: 14px;
     font-weight: 400;
 }
+
+
+/********** otros **************/
+
+.sidebar-nav .nav-link.active {
+    color: #012970;
+    background: #fff;
+    border: 1px solid transparent;
+    border-color: #899bbd;
+
+}

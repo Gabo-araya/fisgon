@@ -4,38 +4,41 @@
 <aside id="sidebar" class="sidebar">
     <ul class="sidebar-nav" id="sidebar-nav">
         <li class="nav-item">
-            <a class="nav-link {% if 'dashboard' in request.path %} collapsed {% endif %}"
+            <a class="nav-link {% if 'dashboard' in request.path %}active{% endif %}"
                 href="{% url 'index' %}">
                 <i class="bi bi-grid"></i>
-                <span>Dashboard
-                    {% if 'admin' in request.user.groups.all.0.name %}
-                        Admin
-                    {% endif %}
-                    {% if 'crawler' in request.user.groups.all.0.name %}
-                        Crawler
-                    {% endif %}
-                    {% if 'viewer' in request.user.groups.all.0.name %}
-                        Viewer
-                    {% endif %}
-                </span>
+                <span>Dashboard </span>
             </a>
         </li>
 
 
         <!-- Sección Funcionalidades -->
         <li class="nav-heading">Funcionalidades</li>
+
         <li class="nav-item">
-            <a class="nav-link {% if 'crawler' in request.path %} collapsed {% endif %}"
-                href="{% url 'crawler:dashboard' %}" >
-                <i class="bi bi-incognito"></i>
-                <span>Crawler *</span>
-            </a>
+            <div class="row">
+                <div class="col-9">
+                    <a class="nav-link {% if 'sesiones' in request.path %}active{% endif %}"
+                        href="{% url 'crawler:session_list' %}" >
+                        <i class="bi bi-incognito"></i>
+                        <span>Sesiones</span>
+                    </a>
+                </div>
+                <div class="col-1">
+                    <div class="text-center">
+                        <a href="{% url 'crawler:create_session' %}" class="btn btn-outline-success rounded-pill text-center" title="Nueva sesión de Crawling">
+                            <i class="bi bi-plus-circle"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
         </li>
+
         <li class="nav-item">
-            <a class="nav-link {% if 'report' in request.path %} collapsed {% endif %}"
-                href="#">
+            <a class="nav-link {% if 'estadisticas' in request.path %}active{% endif %}"
+                href="{% url 'crawler:stats' %}">
                 <i class="bi bi-bar-chart-line"></i>
-                <span>Reportes *</span>
+                <span>Estadísticas</span>
             </a>
         </li>
 
@@ -43,7 +46,7 @@
         <!-- Seccion Ayuda -->
         <li class="nav-heading">Ayuda</li>
         <li class="nav-item">
-            <a class="nav-link {% if 'ayuda' in request.path %} collapsed {% endif %}"
+            <a class="nav-link {% if 'ayuda' in request.path %}active{% endif %}"
                 href="{% url 'ayuda' %}">
                 <i class="bi bi-question-circle"></i>
                 <span>Ayuda</span>
@@ -56,7 +59,7 @@
         <!-- Sección Usuarios -->
         <li class="nav-heading">Usuarios</li>
         <li class="nav-item">
-            <a class="nav-link {% if 'usuario' in request.path %} collapsed {% endif %}"
+            <a class="nav-link {% if 'usuario' in request.path %}active{% endif %}"
                 href="{% url 'listar_usuarios' %}">
                 <i class="bi bi-people"></i>
                 <span>Usuarios</span>
@@ -69,7 +72,7 @@
 
     {% if 'admin' in request.user.groups.all.0.name %}
         <li class="nav-item">
-            <a class="nav-link {% if 'configuracion' in request.path %} collapsed {% endif %}"
+            <a class="nav-link {% if 'configuracion' in request.path %}active{% endif %}"
                 href="{% url 'configuracion' %}">
                 <i class="bi bi-sliders"></i>
                 <span>Configuración</span>
@@ -78,7 +81,7 @@
     {% endif %}
 
         <li class="nav-item">
-            <a class="nav-link {% if 'cambiar_password' in request.path %} collapsed {% endif %}"
+            <a class="nav-link {% if 'cambiar_password' in request.path %}active{% endif %}"
                 href="{% url 'cambiar_password_usuario' request.user.id %}">
                 <i class="bi bi-asterisk"></i>
                 <span>Cambiar Password</span>

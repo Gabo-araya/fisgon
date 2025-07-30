@@ -17,6 +17,7 @@ requests==2.31.0
 beautifulsoup4==4.12.2
 lxml==4.9.3
 urllib3==2.0.7
+python-magic==0.4.27  # Para identificación de tipos de archivo por magic numbers
 
 # Extracción de metadatos
 PyPDF2==3.0.1

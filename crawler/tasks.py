@@ -16,8 +16,18 @@ from .utils import (
     get_file_extension,
     is_allowed_file_type,
     extract_robots_txt,
-    should_respect_robots_txt
+    should_respect_robots_txt,
+    is_same_domain,
+    get_url_priority,
+    get_domain_from_url
 )
+
+
+# Configuración para manejo de SSL problemático
+import ssl
+import urllib3
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
 
 logger = logging.getLogger('crawler')
 
@@ -46,7 +56,8 @@ def start_crawl_session(self, session_id: int):
                 'depth': 0,
                 'url_type': 'html',
                 'priority': 1,
-                'status': 'pending'
+                'status': 'pending',
+                'referrer': ''  # URL inicial no tiene referrer
             }
         )
 
@@ -82,7 +93,16 @@ def process_robots_txt(self, session_id: int):
         session = CrawlSession.objects.get(id=session_id)
         robots_url = f"https://{session.target_domain}/robots.txt"
 
-        response = requests.get(robots_url, timeout=10)
+        # response = requests.get(robots_url, timeout=10)
+
+        # Configuración de requests con SSL más permisivo
+        response = requests.get(
+            robots_url, 
+            timeout=10, 
+            verify=False,  # Deshabilitar verificación SSL para robots.txt problemáticos
+            headers={'User-Agent': settings.CRAWLER_SETTINGS.get('USER_AGENT', 'FisgonCrawler/1.0')}
+        )
+
         if response.status_code == 200:
             robots_rules = extract_robots_txt(response.text)
 
@@ -105,6 +125,16 @@ def process_robots_txt(self, session_id: int):
 
     except Exception as e:
         logger.error(f'Error procesando robots.txt: {str(e)}')
+        # No es crítico, continuar con el crawling
+        try:
+            session = CrawlSession.objects.get(id=session_id)
+            CrawlLog.objects.create(
+                session=session,
+                level='WARNING',
+                message=f'Error procesando robots.txt: {str(e)}'
+            )
+        except:
+            pass
 
 
 @shared_task(bind=True)
@@ -191,13 +221,23 @@ def process_single_url(self, session_id: int, url_queue_id: int):
             'Upgrade-Insecure-Requests': '1',
         }
 
-        # Realizar request
+        # # Realizar request
+        # response = requests.get(
+        #     url_item.url,
+        #     headers=headers,
+        #     timeout=settings.CRAWLER_SETTINGS['TIMEOUT'],
+        #     allow_redirects=session.follow_redirects,
+        #     stream=True
+        # )
+
+        # Realizar request con configuración SSL permisiva
         response = requests.get(
             url_item.url,
             headers=headers,
-            timeout=settings.CRAWLER_SETTINGS['TIMEOUT'],
+            timeout=settings.CRAWLER_SETTINGS.get('TIMEOUT', 30),
             allow_redirects=session.follow_redirects,
-            stream=True
+            stream=True,
+            verify=False  # Deshabilitar verificación SSL para evitar errores de certificado
         )
 
         response_time = time.time() - start_time
@@ -288,6 +328,85 @@ def process_single_url(self, session_id: int, url_queue_id: int):
 
 @shared_task(bind=True)
 def extract_urls_from_html(self, session_id: int, url_queue_id: int, html_content: str):
+    '''Extrae URLs de contenido HTML y guarda el referrer'''
+    try:
+        session = CrawlSession.objects.get(id=session_id)
+        parent_url_item = URLQueue.objects.get(id=url_queue_id)
+        
+        # Parsear HTML
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(html_content, 'html.parser')
+        
+        # Extraer todas las URLs
+        urls_found = set()
+        base_url = parent_url_item.url
+        
+        # Enlaces en tags <a>
+        for link in soup.find_all('a', href=True):
+            href = link['href']
+            full_url = urljoin(base_url, href)
+            if is_valid_url(full_url) and is_same_domain(full_url, session.target_domain):
+                urls_found.add(full_url)
+        
+        # Enlaces a archivos en otros tags
+        for tag in soup.find_all(['img', 'link', 'script'], src=True):
+            src = tag['src']
+            full_url = urljoin(base_url, src)
+            if is_valid_url(full_url) and is_same_domain(full_url, session.target_domain):
+                urls_found.add(full_url)
+        
+        # Enlaces en tag <link> con href
+        for link in soup.find_all('link', href=True):
+            href = link['href']
+            full_url = urljoin(base_url, href)
+            if is_valid_url(full_url) and is_same_domain(full_url, session.target_domain):
+                urls_found.add(full_url)
+        
+        # Crear nuevas entradas en URLQueue con referrer
+        urls_added = 0
+        for url in urls_found:
+            # Verificar si ya existe
+            if not URLQueue.objects.filter(session=session, url=url).exists():
+                
+                # Determinar tipo de archivo y prioridad
+                file_extension = get_file_extension(url)
+                priority = get_url_priority(url)
+                
+                # IMPORTANTE: Guardar el referrer (URL padre)
+                URLQueue.objects.create(
+                    session=session,
+                    url=url,
+                    parent_url=base_url,
+                    referrer=base_url, 
+                    depth=parent_url_item.depth + 1,
+                    url_type=file_extension,
+                    priority=priority,
+                    status='pending'
+                )
+                urls_added += 1
+        
+        # Log de URLs descubiertas
+        if urls_added > 0:
+            CrawlLog.objects.create(
+                session=session,
+                level='INFO',
+                message=f'Descubiertas {urls_added} nuevas URLs desde {base_url}',
+                details={
+                    'parent_depth': parent_url_item.depth,
+                    'referrer': base_url,
+                    'total_urls_found': len(urls_found)
+                }
+            )
+
+        return {'status': 'completed', 'urls_added': urls_added}
+
+    except Exception as e:
+        logger.error(f'Error extrayendo URLs de HTML: {str(e)}')
+        return {'status': 'error', 'message': str(e)}
+    
+
+@shared_task(bind=True)
+def extract_urls_from_html_old(self, session_id: int, url_queue_id: int, html_content: str):
     '''Extrae URLs de contenido HTML'''
     try:
         session = CrawlSession.objects.get(id=session_id)
@@ -424,6 +543,113 @@ def save_and_extract_metadata(self, session_id: int, url_queue_id: int, content:
 
 @shared_task(bind=True)
 def extract_file_metadata(self, result_id: int):
+    '''Extrae metadatos de un archivo guardado usando extractores especializados'''
+    try:
+        result = CrawlResult.objects.get(id=result_id)
+        
+        # Importar el módulo de extractores (se creará en el siguiente paso)
+        try:
+            from .extractors import extract_metadata_from_file
+            
+            # Extraer metadatos usando el extractor apropiado
+            extracted_metadata = extract_metadata_from_file(
+                file_path=result.file_path,
+                file_url=result.url_queue_item.url,
+                referrer=result.url_queue_item.referrer  # Nuevo campo referrer
+            )
+            
+            # Guardar metadatos extraídos
+            result.metadata = extracted_metadata
+            result.save()
+            
+            # Actualizar información adicional si está disponible
+            if 'title' in extracted_metadata.get('html_metadata', {}):
+                result.title = extracted_metadata['html_metadata']['title'][:500]
+            elif 'title' in extracted_metadata.get('pdf_metadata', {}):
+                result.title = extracted_metadata['pdf_metadata']['title'][:500]
+            elif 'title' in extracted_metadata.get('office_metadata', {}):
+                result.title = extracted_metadata['office_metadata']['title'][:500]
+            
+            if 'subject' in extracted_metadata.get('pdf_metadata', {}):
+                result.description = extracted_metadata['pdf_metadata']['subject']
+            elif 'comments' in extracted_metadata.get('office_metadata', {}):
+                result.description = extracted_metadata['office_metadata']['comments']
+            
+            if 'keywords' in extracted_metadata.get('pdf_metadata', {}):
+                result.keywords = extracted_metadata['pdf_metadata']['keywords']
+            elif 'keywords' in extracted_metadata.get('office_metadata', {}):
+                result.keywords = extracted_metadata['office_metadata']['keywords']
+            
+            result.save()
+            
+        except ImportError:
+            # Si extractors.py no existe, usar extracción básica
+            logger.warning("Módulo extractors.py no encontrado, usando extracción básica")
+            
+            basic_metadata = {
+                'file_size': result.url_queue_item.file_size,
+                'content_type': result.url_queue_item.content_type,
+                'url': result.url_queue_item.url,
+                'referrer': result.url_queue_item.referrer,
+                'discovered_at': result.url_queue_item.discovered_at.isoformat(),
+                'file_hash': result.file_hash,
+            }
+            
+            result.metadata = basic_metadata
+            result.save()
+        
+        # Marcar URL como que tiene metadatos
+        result.url_queue_item.has_metadata = True
+        result.url_queue_item.metadata_extracted_at = timezone.now()
+        result.url_queue_item.save()
+        
+        # Log del éxito
+        CrawlLog.objects.create(
+            session=result.session,
+            level='INFO',
+            message=f'Metadatos extraídos exitosamente de {result.file_name}',
+            details={
+                'file_type': os.path.splitext(result.file_path)[1].lower(),
+                'metadata_fields_count': len(result.metadata),
+                'has_extraction_error': 'extraction_error' in result.metadata
+            }
+        )
+        
+        return {
+            'status': 'completed', 
+            'metadata_fields': len(result.metadata),
+            'file_type': os.path.splitext(result.file_path)[1].lower()
+        }
+
+    except CrawlResult.DoesNotExist:
+        logger.error(f'CrawlResult {result_id} no encontrado')
+        return {'status': 'error', 'message': 'Resultado no encontrado'}
+    except Exception as e:
+        logger.error(f'Error extrayendo metadatos: {str(e)}')
+        
+        # Intentar marcar el error en el resultado si existe
+        try:
+            result = CrawlResult.objects.get(id=result_id)
+            result.metadata = {
+                'extraction_error': str(e),
+                'extracted_at': timezone.now().isoformat()
+            }
+            result.save()
+            
+            CrawlLog.objects.create(
+                session=result.session,
+                level='ERROR',
+                message=f'Error extrayendo metadatos de {result.file_name}: {str(e)}'
+            )
+        except:
+            pass
+        
+        return {'status': 'error', 'message': str(e)}
+
+
+
+@shared_task(bind=True)
+def extract_file_metadata_old(self, result_id: int):
     '''Extrae metadatos de un archivo guardado'''
     try:
         result = CrawlResult.objects.get(id=result_id)
@@ -470,7 +696,8 @@ def complete_crawl_session(self, session_id: int):
                 'total_urls_processed': session.total_urls_processed,
                 'total_files_found': session.total_files_found,
                 'total_errors': session.total_errors,
-                'duration_minutes': (session.completed_at - session.started_at).total_seconds() / 60
+                # 'duration_minutes': (session.completed_at - session.started_at).total_seconds() / 60
+                'duration_minutes': (session.completed_at - session.started_at).total_seconds() / 60 if session.started_at else 0
             }
         )
 

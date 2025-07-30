@@ -1,0 +1,509 @@
+{% extends "panel/base_admin.html" %} 
+{% load static %}
+
+{% block title %} {{ page }} {% endblock title %}
+
+{% block stylesheets %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+.stats-card {
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+.stats-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+.metric-value {
+    font-size: 2.5rem;
+    font-weight: bold;
+}
+.metric-label {
+    font-size: 0.9rem;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.chart-container {
+    position: relative;
+    height: 300px;
+}
+.progress-ring {
+    width: 120px;
+    height: 120px;
+}
+.domain-item {
+    padding: 10px;
+    border-left: 4px solid transparent;
+    margin-bottom: 5px;
+    background: #f8f9fa;
+}
+.domain-item:nth-child(odd) { border-left-color: #007bff; }
+.domain-item:nth-child(even) { border-left-color: #28a745; }
+</style>
+{% endblock stylesheets %} 
+
+{% block content %}
+
+<main id="main" class="main">
+    <div class="pagetitle">
+        <h1>{{ page }}</h1>
+        {% include 'panel/breadcrumb.html' %}
+    </div>
+    <!-- End Page Title -->
+
+    <section class="section">
+        <!-- col-8 / col-4 -->
+
+        <div class="container-fluid py-4">
+            <!-- Header -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-body">
+                            <h3 class="card-title">
+                                <i class="{{ icon }}"></i> {{ page }}
+                            </h3>
+                            <p class="text-muted">Análisis completo de la actividad del crawler y métricas de rendimiento</p>
+                            <div class="d-flex gap-2 mt-3">
+                                <button class="btn btn-outline-primary btn-sm" onclick="refreshStats()">
+                                    <i class="bi bi-arrow-clockwise"></i> Actualizar
+                                </button>
+                                <button class="btn btn-outline-success btn-sm" onclick="exportStats()">
+                                    <i class="bi bi-download"></i> Exportar Estadísticas
+                                </button>
+                                <div class="dropdown">
+                                    <button class="btn btn-outline-info btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                        <i class="bi bi-funnel"></i> Filtros
+                                    </button>
+                                    <ul class="dropdown-menu">
+                                        <li><a class="dropdown-item" href="?period=week">Última semana</a></li>
+                                        <li><a class="dropdown-item" href="?period=month">Último mes</a></li>
+                                        <li><a class="dropdown-item" href="?period=year">Último año</a></li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li><a class="dropdown-item" href="?">Todos los datos</a></li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Métricas Principales -->
+            <div class="row mb-4">
+                <div class="col-md-3 mb-3">
+                    <div class="card stats-card border-primary">
+                        <div class="card-body text-center">
+                            <i class="bi bi-collection display-4 text-primary mb-3"></i>
+                            <div class="metric-value text-primary">{{ stats.total_sessions }}</div>
+                            <div class="metric-label">Sesiones Totales</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="card stats-card border-success">
+                        <div class="card-body text-center">
+                            <i class="bi bi-check-circle display-4 text-success mb-3"></i>
+                            <div class="metric-value text-success">{{ stats.completed_sessions }}</div>
+                            <div class="metric-label">Completadas</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="card stats-card border-info">
+                        <div class="card-body text-center">
+                            <i class="bi bi-play-circle display-4 text-info mb-3"></i>
+                            <div class="metric-value text-info">{{ stats.active_sessions }}</div>
+                            <div class="metric-label">Activas</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <div class="card stats-card border-danger">
+                        <div class="card-body text-center">
+                            <i class="bi bi-x-circle display-4 text-danger mb-3"></i>
+                            <div class="metric-value text-danger">{{ stats.failed_sessions }}</div>
+                            <div class="metric-label">Fallidas</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Métricas de Rendimiento -->
+            <div class="row mb-4">
+                <div class="col-md-4 mb-3">
+                    <div class="card stats-card">
+                        <div class="card-body text-center">
+                            <i class="bi bi-link-45deg display-4 text-warning mb-3"></i>
+                            <div class="metric-value text-warning">{{ stats.total_urls_processed|floatformat:0 }}</div>
+                            <div class="metric-label">URLs Procesadas</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <div class="card stats-card">
+                        <div class="card-body text-center">
+                            <i class="bi bi-file-earmark display-4 text-info mb-3"></i>
+                            <div class="metric-value text-info">{{ stats.total_files_found|floatformat:0 }}</div>
+                            <div class="metric-label">Archivos Encontrados</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <div class="card stats-card">
+                        <div class="card-body text-center">
+                            <i class="bi bi-exclamation-triangle display-4 text-secondary mb-3"></i>
+                            <div class="metric-value text-secondary">{{ stats.total_errors|floatformat:0 }}</div>
+                            <div class="metric-label">Errores Totales</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Gráficos -->
+            <div class="row mb-4">
+                <!-- Actividad Mensual -->
+                <div class="col-md-8 mb-3">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="bi bi-graph-up"></i> Actividad Mensual (Últimos 12 meses)</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="chart-container">
+                                <canvas id="monthlyActivityChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Estados de Sesiones -->
+                <div class="col-md-4 mb-3">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="bi bi-pie-chart"></i> Estado de Sesiones</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="chart-container">
+                                <canvas id="statusChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dominios y Tipos de Archivo -->
+            <div class="row mb-4">
+                <!-- Top Dominios -->
+                <div class="col-md-6 mb-3">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="bi bi-globe"></i> Dominios Más Crawleados</h5>
+                        </div>
+                        <div class="card-body">
+                            {% for domain in domain_stats %}
+                            <div class="domain-item rounded">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong>{{ domain.target_domain }}</strong>
+                                        <br>
+                                        <small class="text-muted">Promedio: {{ domain.avg_files|floatformat:1 }} archivos</small>
+                                    </div>
+                                    <div class="text-end">
+                                        <span class="badge bg-primary">{{ domain.count }} sesiones</span>
+                                    </div>
+                                </div>
+                            </div>
+                            {% empty %}
+                            <p class="text-muted text-center">No hay datos de dominios disponibles</p>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tipos de Archivo -->
+                <div class="col-md-6 mb-3">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="bi bi-file-earmark-text"></i> Tipos de Archivo Encontrados</h5>
+                        </div>
+                        <div class="card-body">
+                            {% for file_type in file_type_stats %}
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <div class="d-flex align-items-center">
+                                    {% if file_type.url_queue_item__url_type == 'pdf' %}
+                                        <i class="bi bi-file-earmark-pdf text-danger me-2"></i>
+                                    {% elif file_type.url_queue_item__url_type == 'docx' or file_type.url_queue_item__url_type == 'doc' %}
+                                        <i class="bi bi-file-earmark-word text-primary me-2"></i>
+                                    {% elif file_type.url_queue_item__url_type == 'xlsx' or file_type.url_queue_item__url_type == 'xls' %}
+                                        <i class="bi bi-file-earmark-excel text-success me-2"></i>
+                                    {% elif file_type.url_queue_item__url_type == 'jpg' or file_type.url_queue_item__url_type == 'jpeg' or file_type.url_queue_item__url_type == 'png' %}
+                                        <i class="bi bi-image text-warning me-2"></i>
+                                    {% elif file_type.url_queue_item__url_type == 'html' %}
+                                        <i class="bi bi-file-earmark-code text-info me-2"></i>
+                                    {% else %}
+                                        <i class="bi bi-file-earmark me-2"></i>
+                                    {% endif %}
+                                    <span class="fw-bold">{{ file_type.url_queue_item__url_type|upper|default:"Desconocido" }}</span>
+                                </div>
+                                <div>
+                                    <span class="badge bg-secondary">{{ file_type.count }}</span>
+                                    <div class="progress mt-1" style="width: 100px; height: 6px;">
+                                        {% widthratio file_type.count stats.total_files_found 100 as percentage %}
+                                        <div class="progress-bar" style="width: {{ percentage }}%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% empty %}
+                            <p class="text-muted text-center">No hay datos de tipos de archivo disponibles</p>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabla de Estadísticas Detalladas -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5><i class="bi bi-table"></i> Resumen Detallado por Estado</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Estado</th>
+                                            <th>Cantidad</th>
+                                            <th>Porcentaje</th>
+                                            <th>Progreso</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for status_item in status_stats %}
+                                        <tr>
+                                            <td>
+                                                {% if status_item.status == 'completed' %}
+                                                    <i class="bi bi-check-circle text-success me-2"></i>Completado
+                                                {% elif status_item.status == 'running' %}
+                                                    <i class="bi bi-play-circle text-info me-2"></i>Ejecutándose
+                                                {% elif status_item.status == 'pending' %}
+                                                    <i class="bi bi-clock text-warning me-2"></i>Pendiente
+                                                {% elif status_item.status == 'failed' %}
+                                                    <i class="bi bi-x-circle text-danger me-2"></i>Fallido
+                                                {% elif status_item.status == 'cancelled' %}
+                                                    <i class="bi bi-stop-circle text-secondary me-2"></i>Cancelado
+                                                {% else %}
+                                                    <i class="bi bi-question-circle text-muted me-2"></i>{{ status_item.status|title }}
+                                                {% endif %}
+                                            </td>
+                                            <td><strong>{{ status_item.count }}</strong></td>
+                                            <td>
+                                                {% widthratio status_item.count stats.total_sessions 100 as percentage %}
+                                                {{ percentage|floatformat:1 }}%
+                                            </td>
+                                            <td>
+                                                <div class="progress" style="height: 8px;">
+                                                    {% if status_item.status == 'completed' %}
+                                                        <div class="progress-bar bg-success" style="width: {{ percentage }}%"></div>
+                                                    {% elif status_item.status == 'running' %}
+                                                        <div class="progress-bar bg-info" style="width: {{ percentage }}%"></div>
+                                                    {% elif status_item.status == 'pending' %}
+                                                        <div class="progress-bar bg-warning" style="width: {{ percentage }}%"></div>
+                                                    {% elif status_item.status == 'failed' %}
+                                                        <div class="progress-bar bg-danger" style="width: {{ percentage }}%"></div>
+                                                    {% else %}
+                                                        <div class="progress-bar bg-secondary" style="width: {{ percentage }}%"></div>
+                                                    {% endif %}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr>
+                                            <td colspan="4" class="text-center text-muted">No hay datos de estado disponibles</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Acciones -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="d-flex gap-2">
+                        <a href="{% url 'crawler:dashboard' %}" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left"></i> Volver al Dashboard
+                        </a>
+                        <a href="{% url 'crawler:session_list' %}" class="btn btn-primary">
+                            <i class="bi bi-list"></i> Ver Sesiones
+                        </a>
+                        <button class="btn btn-success" onclick="generateReport()">
+                            <i class="bi bi-file-pdf"></i> Generar Reporte
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- end row -->
+    </section>
+</main>
+<!-- End #main -->
+
+{% endblock content %}
+
+
+{% block javascripts %}
+
+<script>
+// Configurar gráficos con Chart.js
+document.addEventListener('DOMContentLoaded', function() {
+    // Gráfico de Actividad Mensual
+    const monthlyCtx = document.getElementById('monthlyActivityChart').getContext('2d');
+    
+    // Preparar datos mensuales
+    const monthlyLabels = [
+        {% for item in monthly_stats %}
+            '{{ item.month|date:"M Y" }}'{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
+    
+    const monthlyData = [
+        {% for item in monthly_stats %}
+            {{ item.count }}{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
+    
+    const monthlyFilesData = [
+        {% for item in monthly_stats %}
+            {{ item.files_found }}{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
+
+    if (monthlyLabels.length > 0 && monthlyData.length > 0) {
+        new Chart(monthlyCtx, {
+            type: 'line',
+            data: {
+                labels: monthlyLabels,
+                datasets: [{
+                    label: 'Sesiones Creadas',
+                    data: monthlyData,
+                    borderColor: '#007bff',
+                    backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }, {
+                    label: 'Archivos Encontrados',
+                    data: monthlyFilesData,
+                    borderColor: '#28a745',
+                    backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top'
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    }
+
+    // Gráfico de Estados
+    const statusCtx = document.getElementById('statusChart').getContext('2d');
+    
+    const statusLabels = [
+        {% for item in status_stats %}
+            '{% if item.status == "completed" %}Completado{% elif item.status == "running" %}Ejecutándose{% elif item.status == "pending" %}Pendiente{% elif item.status == "failed" %}Fallido{% elif item.status == "cancelled" %}Cancelado{% else %}{{ item.status|title }}{% endif %}'{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
+    
+    const statusData = [
+        {% for item in status_stats %}
+            {{ item.count }}{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
+
+    const statusColors = [
+        {% for item in status_stats %}
+            {% if item.status == 'completed' %}'#28a745'
+            {% elif item.status == 'running' %}'#17a2b8'
+            {% elif item.status == 'pending' %}'#ffc107'
+            {% elif item.status == 'failed' %}'#dc3545'
+            {% elif item.status == 'cancelled' %}'#6c757d'
+            {% else %}'#007bff'{% endif %}{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
+
+    if (statusLabels.length > 0 && statusData.length > 0) {
+        new Chart(statusCtx, {
+            type: 'doughnut',
+            data: {
+                labels: statusLabels,
+                datasets: [{
+                    data: statusData,
+                    backgroundColor: statusColors,
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+    }
+});
+
+// Funciones JavaScript
+function refreshStats() {
+    window.location.reload();
+}
+
+function exportStats() {
+    // Implementar exportación de estadísticas
+    const data = {
+        'total_sessions': {{ stats.total_sessions }},
+        'completed_sessions': {{ stats.completed_sessions }},
+        'active_sessions': {{ stats.active_sessions }},
+        'failed_sessions': {{ stats.failed_sessions }},
+        'total_urls_processed': {{ stats.total_urls_processed }},
+        'total_files_found': {{ stats.total_files_found }},
+        'total_errors': {{ stats.total_errors }},
+        'generated_at': new Date().toISOString()
+    };
+    
+    const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `crawler_stats_${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+}
+
+function generateReport() {
+    alert('Funcionalidad de reporte PDF pendiente de implementar');
+}
+</script>
+{% endblock %}

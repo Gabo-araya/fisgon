@@ -134,6 +134,38 @@
                                 <i class="bi bi-download"></i> Exportar Resultados
                             </a>
                             {% endif %}
+
+
+                            {% if session.status in 'completed,failed,cancelled' %}
+                            <div class="dropdown">
+                                <button class="btn btn-success dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                    <i class="bi bi-download"></i> Exportar Datos
+                                </button>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="{% url 'crawler:export_results' session.pk %}?format=csv">
+                                        <i class="bi bi-file-spreadsheet"></i> CSV Básico
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="{% url 'crawler:export_results' session.pk %}?format=csv&include_metadata=1">
+                                        <i class="bi bi-file-spreadsheet-fill"></i> CSV con Metadatos
+                                    </a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item" href="{% url 'crawler:export_results' session.pk %}?format=json&include_metadata=1">
+                                        <i class="bi bi-filetype-json"></i> JSON con Metadatos
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="{% url 'crawler:export_results' session.pk %}?format=json&include_analysis=1">
+                                        <i class="bi bi-filetype-json"></i> JSON con Análisis
+                                    </a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item" href="{% url 'crawler:export_results' session.pk %}?format=pdf">
+                                        <i class="bi bi-file-pdf"></i> Reporte PDF Estándar
+                                    </a></li>
+                                    <li><a class="dropdown-item" href="{% url 'crawler:export_results' session.pk %}?format=pdf&report_type=security">
+                                        <i class="bi bi-file-pdf-fill"></i> Reporte de Seguridad PDF
+                                    </a></li>
+                                </ul>
+                            </div>
+                            {% endif %}
+
                             
                             <a href="{% url 'crawler:session_logs' session.pk %}" class="btn btn-secondary">
                                 <i class="bi bi-file-text"></i> Ver Logs 
@@ -146,6 +178,9 @@
 
                             {% endif %}
                         </div>
+
+
+
                     </div>
                 </div>
             </div>
@@ -172,6 +207,28 @@
             </div>
         </div>
 
+        <!-- Análisis de Metadatos -->
+        <div class="col-md-3 mb-3">
+            <div class="card border-info">
+                <div class="card-body text-center">
+                    <h5 class="card-title">
+                        <i class="bi bi-file-earmark-text text-info"></i>
+                        Análisis de Metadatos
+                    </h5>
+                    <p class="card-text">Analizar metadatos extraídos de los archivos encontrados</p>
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'crawler:session_metadata_summary' session.pk %}" class="btn btn-outline-info btn-sm">
+                            <i class="bi bi-list"></i> Resumen Simple
+                        </a>
+                        <a href="{% url 'crawler:session_advanced_analysis' session.pk %}" class="btn btn-info btn-sm">
+                            <i class="bi bi-graph-up-arrow"></i> Análisis Avanzado
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        
         <!-- Estadísticas -->
         <div class="row mt-3">
             <div class="col-md-3">
@@ -416,6 +473,82 @@
                                             {% endfor %}
                                         </tbody>
                                     </table>
+
+                                    <table class="table table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>URL</th>
+                                                <th>Referrer</th> <!-- NUEVA COLUMNA -->
+                                                <th>Tipo</th>
+                                                <th>Estado</th>
+                                                <th>Tamaño</th>
+                                                <th>Metadatos</th> <!-- NUEVA COLUMNA -->
+                                                <th>Acciones</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for url_item in results %}
+                                            <tr>
+                                                <td>
+                                                    <a href="{{ url_item.url }}" target="_blank" class="text-decoration-none">
+                                                        {{ url_item.url|truncatechars:50 }}
+                                                    </a>
+                                                </td>
+                                                <td> <!-- NUEVA COLUMNA -->
+                                                    {% if url_item.referrer %}
+                                                        <small class="text-muted">{{ url_item.referrer|truncatechars:30 }}</small>
+                                                    {% else %}
+                                                        <em class="text-muted">N/A</em>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    <span class="badge bg-info">{{ url_item.url_type|upper }}</span>
+                                                </td>
+                                                <td>
+                                                    {% if url_item.http_status_code == 200 %}
+                                                        <span class="badge bg-success">{{ url_item.http_status_code }}</span>
+                                                    {% elif url_item.http_status_code %}
+                                                        <span class="badge bg-warning">{{ url_item.http_status_code }}</span>
+                                                    {% else %}
+                                                        <span class="badge bg-secondary">Pendiente</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    {% if url_item.file_size %}
+                                                        {{ url_item.file_size|filesizeformat }}
+                                                    {% else %}
+                                                        <em class="text-muted">N/A</em>
+                                                    {% endif %}
+                                                </td>
+                                                <td> <!-- NUEVA COLUMNA -->
+                                                    {% if url_item.has_metadata %}
+                                                        <span class="badge bg-success">
+                                                            <i class="bi bi-check-circle"></i> Disponible
+                                                        </span>
+                                                    {% else %}
+                                                        <span class="badge bg-secondary">
+                                                            <i class="bi bi-x-circle"></i> No disponible
+                                                        </span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    {% if url_item.has_metadata %}
+                                                        {% with result=url_item.results.first %}
+                                                            {% if result %}
+                                                                <a href="{% url 'crawler:file_metadata_detail' result.id %}" class="btn btn-sm btn-outline-primary">
+                                                                    <i class="bi bi-eye"></i> Ver Metadatos
+                                                                </a>
+                                                            {% endif %}
+                                                        {% endwith %}
+                                                    {% else %}
+                                                        <span class="text-muted">-</span>
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+
                                 </div>
                                 <div class="text-center mt-3">
                                     <a href="{% url 'crawler:session_results' session.pk %}" class="btn btn-sm btn-primary">

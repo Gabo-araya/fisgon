@@ -136,6 +136,7 @@ class URLQueue(models.Model):
     session = models.ForeignKey(CrawlSession, on_delete=models.CASCADE, related_name='url_queue')
     url = models.URLField(max_length=2048)
     parent_url = models.URLField(max_length=2048, blank=True, help_text="URL desde donde se descubrió esta URL")
+    referrer = models.URLField(max_length=2048, blank=True, help_text="URL desde donde se hizo el request (HTTP Referrer)")
 
     # Información de crawling
     depth = models.IntegerField(default=0, help_text="Profundidad desde la URL inicial")

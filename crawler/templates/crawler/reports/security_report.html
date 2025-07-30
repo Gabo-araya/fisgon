@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Reporte de Seguridad - {{ session.name }}</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 20px; margin-bottom: 30px; }
+        .section { margin-bottom: 30px; }
+        .risk-high { color: #dc3545; font-weight: bold; }
+        .risk-medium { color: #ffc107; font-weight: bold; }
+        .risk-low { color: #28a745; font-weight: bold; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .alert { padding: 10px; margin: 10px 0; border-left: 4px solid; }
+        .alert-danger { border-color: #dc3545; background-color: #f8d7da; }
+        .alert-warning { border-color: #ffc107; background-color: #fff3cd; }
+        .alert-success { border-color: #28a745; background-color: #d4edda; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>REPORTE DE SEGURIDAD Y PRIVACIDAD</h1>
+        <h2>{{ session.name }}</h2>
+        <p><strong>Dominio:</strong> {{ session.target_domain }}</p>
+        <p><strong>Generado:</strong> {{ generated_at|date:"d/m/Y H:i:s" }}</p>
+    </div>
+
+    {% if analysis %}
+    <!-- Resumen Ejecutivo -->
+    <div class="section">
+        <h2>RESUMEN EJECUTIVO</h2>
+        <table>
+            <tr>
+                <th>Métrica</th>
+                <th>Valor</th>
+                <th>Estado</th>
+            </tr>
+            <tr>
+                <td>Riesgo de Seguridad</td>
+                <td>{{ analysis.risk_assessment.overall_risk_score }}/10</td>
+                <td class="risk-{% if analysis.risk_assessment.overall_risk_score <= 3 %}low{% elif analysis.risk_assessment.overall_risk_score <= 6 %}medium{% else %}high{% endif %}">
+                    {{ analysis.risk_assessment.risk_level }}
+                </td>
+            </tr>
+            <tr>
+                <td>Riesgo de Privacidad</td>
+                <td>{{ analysis.privacy_assessment.overall_privacy_score }}/10</td>
+                <td class="risk-{% if analysis.privacy_assessment.overall_privacy_score <= 3 %}low{% elif analysis.privacy_assessment.overall_privacy_score <= 6 %}medium{% else %}high{% endif %}">
+                    {{ analysis.privacy_assessment.privacy_level }}
+                </td>
+            </tr>
+            <tr>
+                <td>Archivos con Metadatos</td>
+                <td>{{ session.total_files_found }}</td>
+                <td>-</td>
+            </tr>
+            <tr>
+                <td>Autores Únicos Detectados</td>
+                <td>{{ analysis.authors_analysis.total_unique_authors }}</td>
+                <td>-</td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- Riesgos de Seguridad -->
+    <div class="section">
+        <h2>RIESGOS DE SEGURIDAD IDENTIFICADOS</h2>
+        {% for risk in analysis.risk_assessment.identified_risks %}
+        <div class="alert alert-danger">
+            <h3>{{ risk.type|title }} - Nivel {{ risk.level }}/10</h3>
+            <p><strong>Descripción:</strong> {{ risk.description }}</p>
+            <p><strong>Elementos Afectados:</strong> {{ risk.affected_items }}</p>
+            <p><strong>Recomendación:</strong> {{ risk.recommendation }}</p>
+        </div>
+        {% empty %}
+        <div class="alert alert-success">
+            <p>No se identificaron riesgos de seguridad significativos.</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Riesgos de Privacidad -->
+    <div class="section">
+        <h2>RIESGOS DE PRIVACIDAD IDENTIFICADOS</h2>
+        {% for risk in analysis.privacy_assessment.identified_privacy_risks %}
+        <div class="alert alert-warning">
+            <h3>{{ risk.type|title }} - Nivel {{ risk.level }}/10</h3>
+            <p><strong>Descripción:</strong> {{ risk.description }}</p>
+            <p><strong>Elementos Afectados:</strong> {{ risk.affected_items }}</p>
+            <p><strong>Recomendación:</strong> {{ risk.recommendation }}</p>
+        </div>
+        {% empty %}
+        <div class="alert alert-success">
+            <p>No se identificaron riesgos de privacidad significativos.</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Software Desactualizado -->
+    {% if analysis.software_analysis.outdated_software %}
+    <div class="section">
+        <h2>SOFTWARE DESACTUALIZADO DETECTADO</h2>
+        <table>
+            <tr>
+                <th>Software</th>
+                <th>Versión</th>
+                <th>Año</th>
+                <th>Antigüedad</th>
+                <th>Riesgo</th>
+            </tr>
+            {% for software in analysis.software_analysis.outdated_software %}
+            <tr>
+                <td>{{ software.software }}</td>
+                <td>{{ software.version }}</td>
+                <td>{{ software.year }}</td>
+                <td>{{ software.age_years }} años</td>
+                <td class="risk-high">{{ software.risk_level }}/10</td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+    {% endif %}
+
+    <!-- Información Personal Expuesta -->
+    {% if analysis.authors_analysis.email_addresses_found %}
+    <div class="section">
+        <h2>INFORMACIÓN PERSONAL EXPUESTA</h2>
+        <div class="alert alert-danger">
+            <h3>Direcciones de Correo Encontradas:</h3>
+            <ul>
+                {% for email in analysis.authors_analysis.email_addresses_found %}
+                <li>{{ email }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Coordenadas GPS -->
+    {% if analysis.location_analysis.total_files_with_gps > 0 %}
+    <div class="section">
+        <h2>EXPOSICIÓN DE UBICACIÓN GPS</h2>
+        <div class="alert alert-warning">
+            <p><strong>Archivos con coordenadas GPS:</strong> {{ analysis.location_analysis.total_files_with_gps }}</p>
+            <p><strong>Ubicaciones únicas:</strong> {{ analysis.location_analysis.unique_locations }}</p>
+            {% if analysis.location_analysis.location_clusters %}
+            <p><strong>Clusters de ubicación:</strong> {{ analysis.location_analysis.location_clusters|length }}</p>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Recomendaciones -->
+    <div class="section">
+        <h2>RECOMENDACIONES GENERALES</h2>
+        <ol>
+            <li><strong>Configuración de Herramientas:</strong> Configurar software para no incluir información personal en metadatos.</li>
+            <li><strong>Limpieza de Metadatos:</strong> Implementar proceso de limpieza de metadatos antes de publicar documentos.</li>
+            <li><strong>Actualización de Software:</strong> Mantener actualizado el software utilizado para crear documentos.</li>
+            <li><strong>Políticas de Privacidad:</strong> Establecer políticas claras sobre el manejo de información personal en documentos.</li>
+            <li><strong>Revisión Periódica:</strong> Realizar auditorías periódicas de metadatos expuestos.</li>
+        </ol>
+    </div>
+
+    {% else %}
+    <div class="section">
+        <div class="alert alert-warning">
+            <h2>Error en el Análisis</h2>
+            <p>No se pudo completar el análisis de metadatos para esta sesión.</p>
+            {% if analysis_error %}
+            <p><strong>Error:</strong> {{ analysis_error }}</p>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Footer -->
+    <div style="margin-top: 50px; text-align: center; font-size: 12px; color: #666;">
+        <p>Reporte generado por FISGÓN - Sistema de Análisis de Metadatos Web</p>
+        <p>{{ generated_at|date:"d/m/Y H:i:s" }}</p>
+    </div>
+</body>
+</html>
+
+<!-- ================================= -->
+<!-- crawler/templates/crawler/reports/standard_report.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Reporte de Crawling - {{ session.name }}</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; font-size: 12px; }
+        .header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 20px; margin-bottom: 30px; }
+        .section { margin-bottom: 30px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #ddd; padding: 6px; text-align: left; }
+        th { background-color: #f2f2f2; font-size: 11px; }
+        td { font-size: 10px; }
+        .url-cell { max-width: 200px; word-wrap: break-word; }
+        .metadata-summary { background-color: #f8f9fa; padding: 10px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>REPORTE DE CRAWLING</h1>
+        <h2>{{ session.name }}</h2>
+        <p><strong>Dominio:</strong> {{ session.target_domain }}</p>
+        <p><strong>URL Inicial:</strong> {{ session.target_url }}</p>
+        <p><strong>Estado:</strong> {{ session.get_status_display }}</p>
+        <p><strong>Generado:</strong> {{ generated_at|date:"d/m/Y H:i:s" }}</p>
+    </div>
+
+    <!-- Estadísticas Generales -->
+    <div class="section">
+        <h2>ESTADÍSTICAS GENERALES</h2>
+        <table>
+            <tr>
+                <th>Métrica</th>
+                <th>Valor</th>
+            </tr>
+            <tr>
+                <td>URLs Procesadas</td>
+                <td>{{ session.total_urls_processed }}</td>
+            </tr>
+            <tr>
+                <td>Archivos Encontrados</td>
+                <td>{{ session.total_files_found }}</td>
+            </tr>
+            <tr>
+                <td>Errores Encontrados</td>
+                <td>{{ session.total_errors }}</td>
+            </tr>
+            <tr>
+                <td>Profundidad Máxima</td>
+                <td>{{ session.max_depth }} niveles</td>
+            </tr>
+            <tr>
+                <td>Límite de Velocidad</td>
+                <td>{{ session.rate_limit }} req/seg</td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- Archivos Encontrados -->
+    {% if results %}
+    <div class="section">
+        <h2>ARCHIVOS ENCONTRADOS CON METADATOS</h2>
+        <table>
+            <tr>
+                <th>URL</th>
+                <th>Referrer</th>
+                <th>Tipo</th>
+                <th>Tamaño</th>
+                <th>Estado</th>
+                {% if include_metadata %}
+                <th>Autor</th>
+                <th>Software</th>
+                <th>Fecha Creación</th>
+                {% endif %}
+            </tr>
+            {% for result in results %}
+            <tr>
+                <td class="url-cell">{{ result.url_queue_item.url|truncatechars:60 }}</td>
+                <td class="url-cell">
+                    {% if result.url_queue_item.referrer %}
+                        {{ result.url_queue_item.referrer|truncatechars:40 }}
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+                <td>{{ result.url_queue_item.url_type|upper }}</td>
+                <td>
+                    {% if result.url_queue_item.file_size %}
+                        {{ result.url_queue_item.file_size|filesizeformat }}
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+                <td>{{ result.url_queue_item.http_status_code|default:"-" }}</td>
+                {% if include_metadata %}
+                <td>
+                    {% with metadata=result.metadata %}
+                        {% for category in 'pdf_metadata,office_metadata'|split:',' %}
+                            {% if category in metadata and 'author' in metadata|get_item:category %}
+                                {{ metadata|get_item:category|get_item:'author'|truncatechars:20 }}
+                            {% endif %}
+                        {% endfor %}
+                    {% endwith %}
+                </td>
+                <td>
+                    {% with metadata=result.metadata %}
+                        {% for category in 'pdf_metadata,office_metadata'|split:',' %}
+                            {% if category in metadata %}
+                                {% if 'producer' in metadata|get_item:category %}
+                                    {{ metadata|get_item:category|get_item:'producer'|truncatechars:15 }}
+                                {% elif 'software' in metadata|get_item:category %}
+                                    {{ metadata|get_item:category|get_item:'software'|truncatechars:15 }}
+                                {% endif %}
+                            {% endif %}
+                        {% endfor %}
+                    {% endwith %}
+                </td>
+                <td>
+                    {% with metadata=result.metadata %}
+                        {% for category in 'pdf_metadata,office_metadata'|split:',' %}
+                            {% if category in metadata %}
+                                {% if 'creation_date' in metadata|get_item:category %}
+                                    {{ metadata|get_item:category|get_item:'creation_date'|slice:':10' }}
+                                {% elif 'created' in metadata|get_item:category %}
+                                    {{ metadata|get_item:category|get_item:'created'|slice:':10' }}
+                                {% endif %}
+                            {% endif %}
+                        {% endfor %}
+                    {% endwith %}
+                </td>
+                {% endif %}
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+    {% endif %}
+
+    <!-- Configuración de la Sesión -->
+    <div class="section">
+        <h2>CONFIGURACIÓN DE LA SESIÓN</h2>
+        <table>
+            <tr>
+                <th>Parámetro</th>
+                <th>Valor</th>
+            </tr>
+            <tr>
+                <td>Profundidad Máxima</td>
+                <td>{{ session.max_depth }}</td>
+            </tr>
+            <tr>
+                <td>Límite de Velocidad</td>
+                <td>{{ session.rate_limit }} req/seg</td>
+            </tr>
+            <tr>
+                <td>Máximo de Páginas</td>
+                <td>{{ session.max_pages }}</td>
+            </tr>
+            <tr>
+                <td>Tamaño Máximo de Archivo</td>
+                <td>{{ session.max_file_size|filesizeformat }}</td>
+            </tr>
+            <tr>
+                <td>Respetar robots.txt</td>
+                <td>{{ session.respect_robots_txt|yesno:"Sí,No" }}</td>
+            </tr>
+            <tr>
+                <td>Seguir Redirecciones</td>
+                <td>{{ session.follow_redirects|yesno:"Sí,No" }}</td>
+            </tr>
+            <tr>
+                <td>Extraer Metadatos</td>
+                <td>{{ session.extract_metadata|yesno:"Sí,No" }}</td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- Timestamps -->
+    <div class="section">
+        <h2>INFORMACIÓN TEMPORAL</h2>
+        <table>
+            <tr>
+                <th>Evento</th>
+                <th>Fecha y Hora</th>
+            </tr>
+            <tr>
+                <td>Sesión Creada</td>
+                <td>{{ session.created_at|date:"d/m/Y H:i:s" }}</td>
+            </tr>
+            {% if session.started_at %}
+            <tr>
+                <td>Crawling Iniciado</td>
+                <td>{{ session.started_at|date:"d/m/Y H:i:s" }}</td>
+            </tr>
+            {% endif %}
+            {% if session.completed_at %}
+            <tr>
+                <td>Crawling Completado</td>
+                <td>{{ session.completed_at|date:"d/m/Y H:i:s" }}</td>
+            </tr>
+            <tr>
+                <td>Duración Total</td>
+                <td>
+                    {% with duration=session.completed_at|timeuntil:session.started_at %}
+                        {{ duration }}
+                    {% endwith %}
+                </td>
+            </tr>
+            {% endif %}
+        </table>
+    </div>
+
+    <!-- Footer -->
+    <div style="margin-top: 50px; text-align: center; font-size: 10px; color: #666;">
+        <p>Reporte generado por FISGÓN - Sistema de Crawling y Análisis de Metadatos</p>
+        <p>{{ generated_at|date:"d/m/Y H:i:s" }}</p>
+    </div>
+</body>
+</html>

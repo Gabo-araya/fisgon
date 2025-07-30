@@ -24,6 +24,7 @@ from panel.utils import info_header_user, user_group, is_admin
 
 # Importar modelos desde apps de backend
 from panel.models import Profile_Model
+from crawler.models import CrawlSession, URLQueue, CrawlResult, CrawlLog
 
 # Importación de forms
 from django import forms
@@ -97,22 +98,62 @@ def entrar(request, *args, **kwargs):
     return render(request, 'login/login.html', context)
 
 
+# @login_required(login_url='entrar')
+# def index(request, *args, **kwargs):
+#     '''Redirecciona a la página de inicio de cada tipo de usuario.'''
+
+#     user_group = request.user.groups.first().name
+#     # print(user_group)
+
+#     if user_group == 'admin':
+#         # return render(request, 'panel/dashboard_admin.html', context)
+#         return redirect('dashboard_admin')
+#     elif user_group == 'crawler':
+#         # return render(request, 'panel/dashboard_crawler.html', context)
+#         return redirect('dashboard_crawler')
+#     else:
+#         # return render(request, 'panel/dashboard_viewer.html', context)
+#         return redirect('dashboard_viewer')
+
+
 @login_required(login_url='entrar')
+@allowed_users(allowed_roles=['admin', 'crawler'])
+# def crawler_dashboard(request):
 def index(request, *args, **kwargs):
-    '''Redirecciona a la página de inicio de cada tipo de usuario.'''
+    '''Dashboard principal del crawler'''
 
-    user_group = request.user.groups.first().name
-    print(user_group)
+    # Estadísticas generales
+    user_sessions = CrawlSession.objects.filter(user=request.user)
 
-    if user_group == 'admin':
-        # return render(request, 'panel/dashboard_admin.html', context)
-        return redirect('dashboard_admin')
-    elif user_group == 'crawler':
-        # return render(request, 'panel/dashboard_crawler.html', context)
-        return redirect('dashboard_crawler')
-    else:
-        # return render(request, 'panel/dashboard_viewer.html', context)
-        return redirect('dashboard_viewer')
+    stats = {
+        'total_sessions': user_sessions.count(),
+        'active_sessions': user_sessions.filter(status__in=['pending', 'running', 'paused']).count(),
+        'completed_sessions': user_sessions.filter(status='completed').count(),
+        'total_files_found': sum(session.total_files_found for session in user_sessions),
+        'total_urls_processed': sum(session.total_urls_processed for session in user_sessions),
+    }
+
+    # Sesiones recientes
+    recent_sessions = user_sessions.order_by('-created_at')[:5]
+
+    # Sesiones activas
+    active_sessions = user_sessions.filter(
+        status__in=['pending', 'running', 'paused']
+    ).order_by('-started_at')[:10]
+
+    info_user = info_header_user(request)
+
+    context = {
+        'page': 'Dashboard',
+        'icon': 'bi bi-grid',
+        'info_user': info_user,
+        'stats': stats,
+        'recent_sessions': recent_sessions,
+        'active_sessions': active_sessions,
+    }
+
+    return render(request, 'crawler/dashboard_crawler.html', context)
+
 
 
 
@@ -120,66 +161,45 @@ def index(request, *args, **kwargs):
 # Vistas de redirección de usuarios a Dashboard
 #=======================================================================================================================================
 
-@login_required(login_url='entrar')
-@allowed_users(allowed_roles=['admin'])
-def dashboard_admin(request, *args, **kwargs):
-    '''dashboard_admin'''
-    info_user = info_header_user(request)
-    context = {
-        'page' : 'Dashboard Admin',
-        'icon' : 'bi bi-grid',
-        'info_user': info_user,
-    }
-    return render(request, 'panel/dashboard_admin.html', context)
+# @login_required(login_url='entrar')
+# @allowed_users(allowed_roles=['admin'])
+# def dashboard_admin(request, *args, **kwargs):
+#     '''dashboard_admin'''
+#     info_user = info_header_user(request)
+#     context = {
+#         'page' : 'Dashboard Admin',
+#         'icon' : 'bi bi-grid',
+#         'info_user': info_user,
+#     }
+#     return render(request, 'panel/dashboard_admin.html', context)
 
 
 
-@login_required(login_url='entrar')
-@allowed_users(allowed_roles=['crawler'])
-def dashboard_crawler(request, *args, **kwargs):
-    '''dashboard_crawler'''
-    info_user = info_header_user(request)
-    context = {
-        'page' : 'Dashboard Crawler',
-        'icon' : 'bi bi-grid',
-        'info_user': info_user,
-    }
-    return render(request, 'panel/dashboard_crawler.html', context)
+# @login_required(login_url='entrar')
+# @allowed_users(allowed_roles=['crawler'])
+# def dashboard_crawler(request, *args, **kwargs):
+#     '''dashboard_crawler'''
+#     info_user = info_header_user(request)
+#     context = {
+#         'page' : 'Dashboard Crawler',
+#         'icon' : 'bi bi-grid',
+#         'info_user': info_user,
+#     }
+#     return render(request, 'panel/dashboard_crawler.html', context)
 
 
 
-@login_required(login_url='entrar')
-@allowed_users(allowed_roles=['viewer'])
-def dashboard_viewer(request, *args, **kwargs):
-    '''dashboard_viewer'''
-    info_user = info_header_user(request)
-    context = {
-        'page' : 'Dashboard Viewer',
-        'icon' : 'bi bi-grid',
-        'info_user': info_user,
-    }
-    return render(request, 'panel/dashboard_viewer.html', context)
-
-
-
-#=======================================================================================================================================
-# Vistas Dashboard ADMIN
-#=======================================================================================================================================
-
-
-
-#=======================================================================================================================================
-# Vistas Dashboard CRAWLER
-#=======================================================================================================================================
-
-
-
-#=======================================================================================================================================
-# Vistas Dashboard VIEWER
-#=======================================================================================================================================
-
-
-
+# @login_required(login_url='entrar')
+# @allowed_users(allowed_roles=['viewer'])
+# def dashboard_viewer(request, *args, **kwargs):
+#     '''dashboard_viewer'''
+#     info_user = info_header_user(request)
+#     context = {
+#         'page' : 'Dashboard Viewer',
+#         'icon' : 'bi bi-grid',
+#         'info_user': info_user,
+#     }
+#     return render(request, 'panel/dashboard_viewer.html', context)
 
 
 

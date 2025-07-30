@@ -1,11 +1,13 @@
 from django.urls import path
-from . import views
+from crawler import views
+from panel.views import index
 
 app_name = 'crawler'
 
 urlpatterns = [
     # Dashboard principal
     path('', views.crawler_dashboard, name='dashboard'),
+    # path('', views.index, name='dashboard'),
 
     # Gestión de sesiones
     path('sesiones/', views.session_list, name='session_list'),
@@ -36,4 +38,12 @@ urlpatterns = [
     # API endpoints
     path('api/sesiones/<int:pk>/status/', views.api_session_status, name='api_session_status'),
     path('api/dashboard/estadisticas/', views.api_dashboard_stats, name='api_dashboard_stats'),
+
+    # Metadatos
+    path('archivo/<int:result_id>/metadatos/', views.file_metadata_detail, name='file_metadata_detail'),
+    path('sesiones/<int:pk>/metadatos-resumen/', views.session_metadata_summary, name='session_metadata_summary'),
+
+    # Análisis avanzado
+    path('sesiones/<int:pk>/analisis-avanzado/', views.session_advanced_analysis, name='session_advanced_analysis'),
+
 ]

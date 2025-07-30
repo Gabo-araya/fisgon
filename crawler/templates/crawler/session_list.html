@@ -188,7 +188,7 @@
                                         {% endif %}
                                     </p>
                                 </div>
-                                <div>
+                                <div class="mt-3">
                                     {% if session.status == 'completed' %}
                                         <span class="badge bg-success">Completado</span>
                                     {% elif session.status == 'running' %}
@@ -228,8 +228,8 @@
                             <div class="progress mb-3" style="height: 15px;">
                                 <div class="progress-bar progress-bar-striped progress-bar-animated" 
                                      role="progressbar" 
-                                     style="width: {{ session.progress_percentage }}%"
-                                     aria-valuenow="{{ session.progress_percentage }}" 
+                                     style="width: {{ session.progress_percentage|floatformat:0 }}%"
+                                     aria-valuenow="{{ session.progress_percentage|floatformat:0 }}" 
                                      aria-valuemin="0" 
                                      aria-valuemax="100">
                                     {{ session.progress_percentage|floatformat:0 }}%
