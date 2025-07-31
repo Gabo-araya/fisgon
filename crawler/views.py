@@ -218,13 +218,13 @@ def session_detail(request, pk):
     }
 
     # URLs recientes
-    recent_urls = session.url_queue.order_by('-processed_at')[:10]
+    recent_urls = session.url_queue.order_by('-processed_at')[:50]
 
     # Archivos encontrados recientes
-    recent_files = session.results.order_by('-created_at')[:10]
+    recent_files = session.results.order_by('-created_at')[:50]
 
     # Log reciente
-    recent_logs = session.logs.order_by('-created_at')[:20]
+    recent_logs = session.logs.order_by('-created_at')[:50]
 
     # Estadísticas por tipo de archivo
     file_type_stats = session.url_queue.filter(
@@ -407,8 +407,10 @@ def session_results(request, pk):
     file_type = request.GET.get('file_type', '')
     search = request.GET.get('search', '')
 
+    # Obtener todos los resultados base
     results = session.results.all()
 
+    # Aplicar filtros
     if file_type:
         results = results.filter(url_queue_item__url_type=file_type)
 
@@ -422,8 +424,51 @@ def session_results(request, pk):
 
     results = results.order_by('-created_at')
 
+    # Calcular estadísticas necesarias para la plantilla
+    all_results = session.results.all()  # Sin filtros para estadísticas generales
+    
+    # Inicializar contadores con tipos esperados
+    file_type_counts = {
+        'pdf': 0,
+        'doc': 0,
+        'docx': 0,
+        'xls': 0,
+        'xlsx': 0,
+        'ppt': 0,
+        'pptx': 0,
+        'odt': 0,
+        'ods': 0,
+        'odp': 0,
+        'jpg': 0,
+        'jpeg': 0,
+        'png': 0,
+        'gif': 0,
+        'mp3': 0,
+        'mp4': 0,
+        'html': 0,
+        'xml': 0,
+        'json': 0,
+    }
+    
+    total_size = 0
+
+    # Contar tipos de archivo reales
+    for result in all_results:
+        url_type = result.url_queue_item.url_type or 'unknown'
+        
+        # Si es un tipo esperado, incrementar contador
+        if url_type in file_type_counts:
+            file_type_counts[url_type] += 1
+        else:
+            # Para tipos no esperados, agregarlos dinámicamente
+            file_type_counts[url_type] = file_type_counts.get(url_type, 0) + 1
+        
+        # Sumar tamaños
+        if result.url_queue_item.file_size:
+            total_size += result.url_queue_item.file_size
+
     # Paginación
-    paginator = Paginator(results, 50)
+    paginator = Paginator(results, 200)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
@@ -439,11 +484,15 @@ def session_results(request, pk):
         'icon': 'bi bi-files',
         'info_user': info_user,
         'session': session,
+        'results': page_obj,  # Para compatibilidad con la plantilla
         'page_obj': page_obj,
         'available_file_types': available_file_types,
         'current_file_type': file_type,
         'current_search': search,
-        'total_results': results.count(),
+        'total_results': all_results.count(),  # Total sin filtros
+        'file_type_counts': file_type_counts,  # VARIABLE FALTANTE AGREGADA
+        'total_size': total_size,  # VARIABLE FALTANTE AGREGADA
+        'is_paginated': page_obj.has_other_pages(),  # Para la paginación
     }
 
     return render(request, 'crawler/session_results.html', context)
@@ -1031,7 +1080,7 @@ def session_metadata_summary(request, pk):
         'info_user': info_user,
         'session': session,
         'stats': stats,
-        'results_with_metadata': results_with_metadata[:20],  # Mostrar solo los primeros 20
+        'results_with_metadata': results_with_metadata[:100],  # Mostrar solo los primeros 20
     }
     
     return render(request, 'crawler/session_metadata_summary.html', context)
