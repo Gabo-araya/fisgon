@@ -507,6 +507,84 @@ def session_logs(request, pk):
 @allowed_users(allowed_roles=['admin', 'crawler', 'viewer'])
 def session_urls(request, pk):
     '''URLs descubiertas en una sesión de crawling'''
+    session = get_object_or_404(CrawlSession, pk=pk)
+    
+    # Verificar permisos
+    if not request.user.groups.filter(name='admin').exists() and session.user != request.user:
+        messages.error(request, 'No tienes permisos para ver las URLs de esta sesión.')
+        return redirect('crawler:session_list')
+    
+    # Filtros
+    status = request.GET.get('status', '')
+    url_type = request.GET.get('url_type', '')
+    depth = request.GET.get('depth', '')
+    search = request.GET.get('search', '')
+    
+    # Obtener URLs base
+    urls = session.url_queue.all()
+    
+    # Aplicar filtros
+    if status:
+        urls = urls.filter(status=status)
+    if url_type:
+        urls = urls.filter(url_type=url_type)
+    if depth:
+        try:
+            urls = urls.filter(depth=int(depth))
+        except ValueError:
+            pass
+    if search:
+        urls = urls.filter(url__icontains=search)
+    
+    # Ordenar por fecha de descubrimiento
+    urls = urls.order_by('-discovered_at')
+    
+    # Calcular estadísticas de URLs
+    url_stats = {
+        'completed': session.url_queue.filter(status='completed').count(),
+        'processing': session.url_queue.filter(status='processing').count(),
+        'pending': session.url_queue.filter(status='pending').count(),
+        'failed': session.url_queue.filter(status='failed').count(),
+        'skipped': session.url_queue.filter(status='skipped').count(),
+    }
+    
+    # Paginación
+    paginator = Paginator(urls, 100)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Opciones para filtros
+    available_statuses = session.url_queue.values_list('status', flat=True).distinct()
+    available_types = session.url_queue.values_list('url_type', flat=True).distinct()
+    available_depths = session.url_queue.values_list('depth', flat=True).distinct().order_by('depth')
+    
+    info_user = info_header_user(request)
+    
+    context = {
+        'page': f'URLs: {session.name}',
+        'icon': 'bi bi-link-45deg',
+        'info_user': info_user,
+        'session': session,
+        'urls': page_obj,  # URLs paginadas para la plantilla
+        'page_obj': page_obj,  # Para compatibilidad con paginación
+        'url_stats': url_stats,  # Estadísticas para las tarjetas
+        'available_statuses': available_statuses,
+        'available_types': available_types,
+        'available_depths': available_depths,
+        'current_status': status,
+        'current_url_type': url_type,
+        'current_depth': depth,
+        'current_search': search,
+        'total_urls': urls.count(),
+    }
+    
+    return render(request, 'crawler/session_urls.html', context)
+
+
+@login_required(login_url='entrar')
+@allowed_users(allowed_roles=['admin', 'crawler', 'viewer'])
+def session_urls_old(request, pk):
+    '''URLs descubiertas en una sesión de crawling'''
 
     session = get_object_or_404(CrawlSession, pk=pk)
 
