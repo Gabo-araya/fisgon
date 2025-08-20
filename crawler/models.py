@@ -30,7 +30,7 @@ class CrawlSession(models.Model):
     # Configuración de crawling
     max_depth = models.IntegerField(default=3, help_text="Profundidad máxima de crawling")
     rate_limit = models.FloatField(default=1.0, help_text="Requests por segundo")
-    max_pages = models.IntegerField(default=1000, help_text="Máximo número de páginas a crawlear")
+    max_pages = models.IntegerField(default=0, help_text="Máximo número de páginas a crawlear (0 = sin límite)")
     max_file_size = models.IntegerField(default=52428800, help_text="Tamaño máximo de archivo en bytes (50MB)")
 
     # Tipos de archivo a buscar
@@ -82,7 +82,10 @@ class CrawlSession(models.Model):
     @property
     def progress_percentage(self):
         if self.max_pages == 0:
-            return 0
+            # Sin límite: mostrar progreso basado en URLs descubiertas
+            if self.total_urls_discovered == 0:
+                return 0
+            return min(100, (self.total_urls_processed / self.total_urls_discovered) * 100)
         return min(100, (self.total_urls_processed / self.max_pages) * 100)
 
     @property
@@ -190,6 +193,14 @@ class CrawlResult(models.Model):
     title = models.CharField(max_length=500, blank=True)
     description = models.TextField(blank=True)
     keywords = models.TextField(blank=True)
+    
+    # Contenido completo del documento
+    full_content = models.TextField(blank=True, null=True, 
+                                   help_text="Contenido completo extraído del archivo (máximo 1M caracteres)")
+    content_length = models.IntegerField(default=0, 
+                                       help_text="Número de caracteres del contenido completo")
+    content_extracted_at = models.DateTimeField(null=True, blank=True,
+                                               help_text="Fecha y hora de extracción del contenido")
 
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)

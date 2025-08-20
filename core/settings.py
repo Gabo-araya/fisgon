@@ -227,7 +227,7 @@ CELERY_ENABLE_UTC = True
 CRAWLER_SETTINGS = {
     'DEFAULT_RATE_LIMIT': 1.0,  # requests per second
     'MAX_DEPTH': 5,
-    'MAX_PAGES': 1000,
+    'MAX_PAGES': 0,  # 0 = sin límite
     'MAX_FILE_SIZE': 50 * 1024 * 1024,  # 50MB
     'TIMEOUT': 30,
     'MAX_RETRIES': 3,
@@ -240,6 +240,23 @@ CRAWLER_SETTINGS = {
     'RESPECT_ROBOTS_TXT': True,
     'FOLLOW_REDIRECTS': True,
     'EXTRACT_METADATA': True,
+}
+
+# Configuración para extracción de contenido completo
+CONTENT_EXTRACTION_SETTINGS = {
+    'MAX_FILE_SIZE_MB': 50,  # Máximo 50MB para extracción
+    'MAX_CONTENT_CHARS': 1000000,  # Máximo 1M caracteres almacenados
+    'MAX_PDF_PAGES': 500,  # Máximo 500 páginas PDF
+    'ENABLE_DOC_EXTRACTION': True,  # Habilitar DOC legacy
+    'EXTRACTION_TIMEOUT': 60,  # Timeout en segundos por archivo
+    'SUPPORTED_FORMATS': ['pdf', 'docx', 'doc', 'odt', 'xlsx', 'xls'],  # Formatos soportados para contenido completo
+    
+    # Configuración específica para Excel
+    'MAX_EXCEL_CELLS_PER_SHEET': 1000,  # Máximo 1000 celdas por hoja
+    'MAX_EXCEL_SHEETS': 10,             # Máximo 10 hojas por archivo
+    'EXCEL_MAX_ROWS': 100,              # Máximo 100 filas por hoja
+    'EXCEL_MAX_COLS': 50,               # Máximo 50 columnas por hoja
+    'DETECT_SENSITIVE_DATA': True,      # Activar detección de datos sensibles
 }
 
 # Logging configuration

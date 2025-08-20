@@ -67,9 +67,9 @@ class CreateCrawlSessionForm(forms.ModelForm):
             }),
             'max_pages': forms.NumberInput(attrs={
                 'class': 'form-control',
-                'min': 10,
-                'max': 10000,
-                'value': 1000
+                'min': 0,
+                'value': 0,
+                'placeholder': '0 = Sin límite'
             }),
             'max_file_size': forms.NumberInput(attrs={
                 'class': 'form-control',
@@ -106,7 +106,7 @@ class CreateCrawlSessionForm(forms.ModelForm):
             'target_url': 'URL inicial desde donde comenzar el crawling',
             'max_depth': 'Niveles de profundidad a explorar desde la URL inicial',
             'rate_limit': 'Número de requests por segundo (para evitar sobrecargar el servidor)',
-            'max_pages': 'Número máximo de páginas a procesar',
+            'max_pages': 'Número máximo de páginas a procesar (0 = sin límite)',
             'max_file_size': 'Tamaño máximo de archivo a descargar (en bytes)',
             'respect_robots_txt': 'Respetar las restricciones del archivo robots.txt del sitio',
             'follow_redirects': 'Seguir automáticamente las redirecciones HTTP',
@@ -122,7 +122,7 @@ class CreateCrawlSessionForm(forms.ModelForm):
         if not self.instance.pk:  # Solo para nuevas instancias
             self.fields['max_depth'].initial = crawler_settings.get('MAX_DEPTH', 3)
             self.fields['rate_limit'].initial = crawler_settings.get('DEFAULT_RATE_LIMIT', 1.0)
-            self.fields['max_pages'].initial = crawler_settings.get('MAX_PAGES', 1000)
+            self.fields['max_pages'].initial = crawler_settings.get('MAX_PAGES', 0)
             self.fields['max_file_size'].initial = crawler_settings.get('MAX_FILE_SIZE', 52428800)
 
         # Personalizar widget de file_types
@@ -166,11 +166,8 @@ class CreateCrawlSessionForm(forms.ModelForm):
     def clean_max_pages(self):
         pages = self.cleaned_data['max_pages']
 
-        if pages < 1:
-            raise forms.ValidationError("Debe procesarse al menos 1 página.")
-
-        if pages > 10000:
-            raise forms.ValidationError("El máximo de páginas permitido es 10,000.")
+        if pages < 0:
+            raise forms.ValidationError("El número de páginas no puede ser negativo. Usar 0 para sin límite.")
 
         return pages
 
@@ -278,8 +275,8 @@ class CrawlSessionSettingsForm(forms.ModelForm):
             }),
             'max_pages': forms.NumberInput(attrs={
                 'class': 'form-control',
-                'min': 1,
-                'max': 10000
+                'min': 0,
+                'placeholder': '0 = Sin límite'
             }),
             'max_file_size': forms.NumberInput(attrs={
                 'class': 'form-control',

@@ -195,7 +195,7 @@
                         </div>
                         <h3 class="mt-3">{{ session.progress_percentage|floatformat:0 }}%</h3>
                         <p class="text-muted">
-                            {{ session.total_urls_processed }} de {{ session.max_pages }} URLs
+                            {{ session.total_urls_processed }}{% if session.max_pages > 0 %} de {{ session.max_pages }}{% endif %} URLs
                         </p>
                         {% if session.status == 'running' %}
                         <small class="text-info">
@@ -237,6 +237,11 @@
                         <h5 class="card-title">URLs Descubiertas</h5>
                         <h2>{{ session.total_urls_discovered }}</h2>
                         <small class="text-muted">Total encontradas</small>
+                        <div class="text-center mt-3">
+                            <a href="{% url 'crawler:session_urls' session.pk %}" class="btn btn-info rounded-pill">
+                                Ver todas las URLs
+                            </a>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -255,6 +260,11 @@
                         <h5 class="card-title">Archivos Encontrados</h5>
                         <h2>{{ session.total_files_found }}</h2>
                         <small class="text-muted">Documentos</small>
+                        <div class="text-center mt-3">
+                            <a href="{% url 'crawler:session_results' session.pk %}" class="btn btn-info rounded-pill">
+                                Ver todos los archivos
+                            </a>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -291,7 +301,7 @@
                             </tr>
                             <tr>
                                 <td><strong>Máximo de Páginas:</strong></td>
-                                <td>{{ session.max_pages }}</td>
+                                <td>{% if session.max_pages > 0 %}{{ session.max_pages }}{% else %}Sin límite{% endif %}</td>
                             </tr>
                             <tr>
                                 <td><strong>Tamaño Máximo de Archivo:</strong></td>

@@ -209,7 +209,7 @@
                             <div class="row text-center mb-3">
                                 <div class="col-4 stats-box">
                                     <small class="text-muted d-block">URLs</small>
-                                    <strong>{{ session.total_urls_processed }}/{{ session.max_pages }}</strong>
+                                    <strong>{{ session.total_urls_processed }}{% if session.max_pages > 0 %}/{{ session.max_pages }}{% endif %}</strong>
                                 </div>
                                 <div class="col-4 stats-box">
                                     <small class="text-muted d-block">Archivos</small>

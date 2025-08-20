@@ -28,6 +28,9 @@ python-pptx==0.6.21
 Pillow==10.1.0
 ExifRead==3.0.0
 mutagen==1.47.0
+odfpy==1.4.1  # Para archivos OpenOffice/LibreOffice (.odt, .ods, .odp)
+docx2txt==0.9  # Para archivos DOC legacy
+xlrd==2.0.1  # Para archivos Excel legacy (.xls)
 
 # Machine Learning y análisis
 scikit-learn==1.3.2

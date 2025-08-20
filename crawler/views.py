@@ -2,11 +2,13 @@ import os
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.http import JsonResponse, HttpResponse
+from django.http import JsonResponse, HttpResponse, Http404, FileResponse
 from django.db.models import Q, Count, Avg
 from django.core.paginator import Paginator
 from django.utils import timezone
+from django.utils.encoding import smart_str
 from django.views.decorators.http import require_http_methods
+import mimetypes
 import json
 
 from panel.decorators import allowed_users
@@ -111,7 +113,7 @@ def start_new_session(request):
                 target_domain=data.get('target_domain'),
                 max_depth=data.get('max_depth', 3),
                 rate_limit=data.get('rate_limit', 1.0),
-                max_pages=data.get('max_pages', 1000),
+                max_pages=data.get('max_pages', 0),
                 file_types=data.get('file_types', []),
                 respect_robots_txt=data.get('respect_robots_txt', True),
                 follow_redirects=data.get('follow_redirects', True),
@@ -569,8 +571,8 @@ def session_urls(request, pk):
     depth = request.GET.get('depth', '')
     search = request.GET.get('search', '')
     
-    # Obtener URLs base
-    urls = session.url_queue.all()
+    # Obtener URLs base con optimización de consultas
+    urls = session.url_queue.select_related('session').prefetch_related('results')
     
     # Aplicar filtros
     if status:
@@ -990,12 +992,16 @@ def file_metadata_detail(request, result_id):
     info_user = info_header_user(request)
     
     context = {
-        'page': f'Metadatos - {result.file_name}',
+        'page': f'Detalle - {result.file_name or "Archivo"}',
         'icon': 'bi bi-file-earmark-text',
         'info_user': info_user,
         'result': result,
         'metadata_categories': metadata_categories,
         'session': result.session,
+        'url_item': result.url_queue_item,
+        'has_content': bool(result.full_content and result.full_content.strip()),
+        'content_length': result.content_length,
+        'full_content': result.full_content,
     }
     
     return render(request, 'crawler/file_metadata_detail.html', context)
@@ -1411,3 +1417,144 @@ def export_pdf_report(session, report_type='standard', include_metadata=False):
         return HttpResponse('Error generando PDF', status=500)
     
     return response
+
+
+
+@login_required(login_url='entrar')
+@allowed_users(allowed_roles=['admin', 'crawler', 'viewer'])
+def api_result_details(request, result_id):
+    '''API para obtener detalles de metadatos de un resultado específico'''
+    
+    try:
+        result = get_object_or_404(CrawlResult, id=result_id)
+        
+        # Verificar que el usuario tenga acceso a esta sesión
+        if result.session.user != request.user and not request.user.groups.filter(name='admin').exists():
+            return JsonResponse({'error': 'Sin permisos'}, status=403)
+        
+        # Organizar metadatos por categorías
+        metadata_categories = {}
+        metadata_items = []
+        
+        if result.metadata:
+            for key, value in result.metadata.items():
+                if key.endswith('_metadata'):
+                    # Es una categoría de metadatos (pdf_metadata, office_metadata, etc.)
+                    category_name = key.replace('_metadata', '').upper()
+                    if isinstance(value, dict):
+                        metadata_categories[category_name] = value
+                else:
+                    # Es un metadato individual
+                    metadata_items.append({
+                        'key': key,
+                        'value': str(value)
+                    })
+        
+        # Preparar datos de respuesta
+        data = {
+            'id': result.id,
+            'file_name': result.file_name or 'Archivo sin nombre',
+            'file_path': result.file_path or '',
+            'file_size': result.url_queue_item.file_size,
+            'file_size_formatted': f"{result.url_queue_item.file_size / (1024*1024):.2f} MB" if result.url_queue_item.file_size else 'N/A',
+            'url': result.url_queue_item.url,
+            'referrer': result.url_queue_item.referrer or '',
+            'url_type': result.url_queue_item.url_type or 'unknown',
+            'content_type': result.url_queue_item.content_type or '',
+            'http_status_code': result.url_queue_item.http_status_code,
+            'discovered_at': result.url_queue_item.discovered_at.strftime('%d/%m/%Y %H:%M:%S') if result.url_queue_item.discovered_at else '',
+            'processed_at': result.url_queue_item.processed_at.strftime('%d/%m/%Y %H:%M:%S') if result.url_queue_item.processed_at else '',
+            'created_at': result.created_at.strftime('%d/%m/%Y %H:%M:%S') if result.created_at else '',
+            'file_hash': result.file_hash or '',
+            'title': result.title or '',
+            'description': result.description or '',
+            'metadata_categories': metadata_categories,
+            'metadata_items': metadata_items,
+            'has_metadata': bool(result.metadata),
+            'metadata_count': len(result.metadata) if result.metadata else 0
+        }
+        
+        return JsonResponse(data)
+        
+    except CrawlResult.DoesNotExist:
+        return JsonResponse({'error': 'Resultado no encontrado'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': f'Error interno: {str(e)}'}, status=500)
+    
+
+
+@login_required(login_url='entrar')
+@allowed_users(allowed_roles=['admin', 'crawler', 'viewer'])
+def api_result_download(request, result_id):
+    '''API para descargar un archivo resultado del crawling'''
+    
+    try:
+        result = get_object_or_404(CrawlResult, id=result_id)
+        
+        # Verificar que el usuario tenga acceso a esta sesión
+        if result.session.user != request.user and not request.user.groups.filter(name='admin').exists():
+            return JsonResponse({'error': 'Sin permisos'}, status=403)
+        
+        # Verificar que el archivo existe físicamente
+        if not result.file_path or not os.path.exists(result.file_path):
+            return JsonResponse({'error': 'Archivo no encontrado en el servidor'}, status=404)
+        
+        # Obtener información del archivo
+        file_path = result.file_path
+        file_name = result.file_name or os.path.basename(file_path)
+        
+        # Determinar content type
+        content_type, _ = mimetypes.guess_type(file_path)
+        if not content_type:
+            content_type = result.url_queue_item.content_type or 'application/octet-stream'
+        
+        try:
+            # Usar FileResponse para archivos grandes (más eficiente)
+            response = FileResponse(
+                open(file_path, 'rb'),
+                content_type=content_type,
+                as_attachment=True,
+                filename=smart_str(file_name)
+            )
+            
+            # Agregar headers adicionales
+            response['Content-Length'] = os.path.getsize(file_path)
+            response['Content-Disposition'] = f'attachment; filename="{smart_str(file_name)}"'
+            
+            return response
+            
+        except IOError:
+            return JsonResponse({'error': 'Error al leer el archivo'}, status=500)
+        
+    except CrawlResult.DoesNotExist:
+        return JsonResponse({'error': 'Resultado no encontrado'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': f'Error interno: {str(e)}'}, status=500)
+    
+
+
+@login_required(login_url='entrar')
+@allowed_users(allowed_roles=['admin', 'crawler', 'viewer'])
+def api_result_download_redirect(request, result_id):
+    '''API alternativa que redirige a la URL original del archivo'''
+    
+    try:
+        result = get_object_or_404(CrawlResult, id=result_id)
+        
+        # Verificar que el usuario tenga acceso a esta sesión
+        if result.session.user != request.user and not request.user.groups.filter(name='admin').exists():
+            return JsonResponse({'error': 'Sin permisos'}, status=403)
+        
+        # Si no hay archivo local, redirigir a la URL original
+        if not result.file_path or not os.path.exists(result.file_path):
+            return redirect(result.url_queue_item.url)
+        
+        # Si hay archivo local, usar la descarga normal
+        return api_result_download(request, result_id)
+        
+    except CrawlResult.DoesNotExist:
+        return JsonResponse({'error': 'Resultado no encontrado'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': f'Error interno: {str(e)}'}, status=500)
+
+

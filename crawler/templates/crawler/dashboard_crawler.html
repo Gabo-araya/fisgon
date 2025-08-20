@@ -192,7 +192,7 @@
                                             </div>
                                         </div>
                                         <div class="d-flex justify-content-between small">
-                                            <span>URLs: {{ session.total_urls_processed }}/{{ session.max_pages }}</span>
+                                            <span>URLs: {{ session.total_urls_processed }}{% if session.max_pages > 0 %}/{{ session.max_pages }}{% endif %}</span>
                                             <span>Archivos: {{ session.total_files_found }}</span>
                                         </div>
                                         <div class="mt-2">
@@ -258,7 +258,7 @@
                                                 <span class="badge bg-secondary">{{ session.get_status_display }}</span>
                                             {% endif %}
                                         </td>
-                                        <td>{{ session.total_urls_processed }}/{{ session.max_pages }}</td>
+                                        <td>{{ session.total_urls_processed }}{% if session.max_pages > 0 %}/{{ session.max_pages }}{% endif %}</td>
                                         <td>{{ session.total_files_found }}</td>
                                         <td>{{ session.created_at|date:"d/m/Y H:i" }}</td>
                                         <td>
@@ -322,7 +322,7 @@
                         <div class="col-md-4">
                             <label class="form-label">Máximo de Páginas</label>
                             <input type="number" class="form-control" name="max_pages" 
-                                   value="100" min="10" max="10000">
+                                   value="0" min="0" placeholder="0 = Sin límite">
                         </div>
                     </div>
                     <div class="mt-3">

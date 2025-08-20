@@ -213,7 +213,7 @@
                                                 <th style="width: 6%;">Tamaño</th>
                                                 <th style="width: 6%;">Profundidad</th>
                                                 <th style="width: 8%;">Tiempo</th>
-                                                <th style="width: 4%;">Metadatos</th>
+                                                <th style="width: 6%;">Metadatos</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -300,8 +300,16 @@
                                                     {% endif %}
                                                 </td>
                                                 <td>
-                                                    {% if url_item.has_metadata %}
-                                                        <i class="bi bi-check-circle text-success" title="Metadatos disponibles"></i>
+                                                    {% if url_item.has_metadata and url_item.results.first %}
+                                                        <a href="{% url 'crawler:file_metadata_detail' url_item.results.first.id %}" 
+                                                           class="btn btn-sm btn-outline-primary" 
+                                                           title="Ver metadatos y contenido completo"
+                                                           target="_blank">
+                                                            <i class="bi bi-file-text"></i>
+                                                            <span class="d-none d-lg-inline ms-1">Ver</span>
+                                                        </a>
+                                                    {% elif url_item.has_metadata %}
+                                                        <i class="bi bi-check-circle text-success" title="Metadatos disponibles sin archivo"></i>
                                                     {% else %}
                                                         <i class="bi bi-dash-circle text-muted" title="Sin metadatos"></i>
                                                     {% endif %}

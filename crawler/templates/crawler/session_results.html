@@ -490,88 +490,222 @@ document.getElementById('searchInput').addEventListener('keyup', function(e) {
 
 // Ver detalles
 function viewDetails(resultId) {
-    // Aquí harías una petición AJAX para obtener los detalles
-    fetch(`/crawler/api/result/${resultId}/details/`)
-        .then(response => response.json())
-        .then(data => {
-            showDetailsModal(data);
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            // Por ahora, mostrar datos de ejemplo
-            showDetailsModal({
-                id: resultId,
-                file_name: 'documento_ejemplo.pdf',
-                file_size: '2.5 MB',
-                url: 'https://example.com/documento.pdf',
-                metadata: {
-                    'Autor': 'Juan Pérez',
-                    'Título': 'Documento de Ejemplo',
-                    'Fecha de creación': '2024-01-15',
-                    'Software': 'Microsoft Word 2019',
-                    'Páginas': '15'
-                }
-            });
-        });
-}
-
-// Mostrar modal de detalles
-function showDetailsModal(data) {
+    // Mostrar loading en el modal existente
     const modalContent = document.getElementById('modalContent');
     const downloadBtn = document.getElementById('downloadBtn');
     
+    modalContent.innerHTML = `
+        <div class="text-center py-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Cargando...</span>
+            </div>
+            <p class="mt-2 text-muted">Cargando detalles del archivo...</p>
+        </div>
+    `;
+    
+    // Mostrar el modal
+    const modal = new bootstrap.Modal(document.getElementById('detailsModal'));
+    modal.show();
+    
+    // Hacer petición AJAX para obtener los detalles reales
+    fetch(`/crawler/api/result/${resultId}/details/`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.error) {
+                console.error('API Error:', data.error);
+                showErrorInModal(data.error);
+                return;
+            }
+            populateModalWithRealData(data);
+            
+            // Configurar botón de descarga
+            downloadBtn.onclick = () => downloadResult(data.id);
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showErrorInModal('Error al cargar los detalles: ' + error.message);
+        });
+}
+
+function populateModalWithRealData(data) {
+    const modalContent = document.getElementById('modalContent');
+    
+    // Generar HTML para metadatos por categorías
     let metadataHtml = '';
-    if (data.metadata && Object.keys(data.metadata).length > 0) {
-        metadataHtml = `
-            <h6>Metadatos Extraídos</h6>
-            <table class="table table-sm metadata-table">
-                <tbody>
-                    ${Object.entries(data.metadata).map(([key, value]) => `
-                        <tr>
-                            <td class="metadata-key">${key}:</td>
-                            <td>${value || 'N/A'}</td>
-                        </tr>
-                    `).join('')}
-                </tbody>
-            </table>
-        `;
+    
+    if (data.has_metadata && data.metadata_count > 0) {
+        // Mostrar categorías de metadatos si existen
+        if (Object.keys(data.metadata_categories).length > 0) {
+            for (const [category, categoryData] of Object.entries(data.metadata_categories)) {
+                metadataHtml += `
+                    <div class="mb-4">
+                        <h6 class="text-primary border-bottom pb-2">
+                            <i class="bi bi-folder2-open"></i> ${category}
+                        </h6>
+                        <table class="table table-sm metadata-table">
+                            <tbody>
+                                ${Object.entries(categoryData).map(([key, value]) => `
+                                    <tr>
+                                        <td class="metadata-key" style="width: 40%;">${key}:</td>
+                                        <td>${value || 'N/A'}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            }
+        }
+        
+        // Mostrar metadatos individuales si existen
+        if (data.metadata_items.length > 0) {
+            metadataHtml += `
+                <div class="mb-4">
+                    <h6 class="text-primary border-bottom pb-2">
+                        <i class="bi bi-info-circle"></i> INFORMACIÓN GENERAL
+                    </h6>
+                    <table class="table table-sm metadata-table">
+                        <tbody>
+                            ${data.metadata_items.map(item => `
+                                <tr>
+                                    <td class="metadata-key" style="width: 40%;">${item.key}:</td>
+                                    <td>${item.value || 'N/A'}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
     } else {
-        metadataHtml = '<p class="text-muted">No se encontraron metadatos en este archivo.</p>';
+        metadataHtml = `
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i>
+                No se encontraron metadatos en este archivo.
+            </div>
+        `;
     }
     
+    // Generar contenido completo del modal
     modalContent.innerHTML = `
         <h6>Información del Archivo</h6>
         <table class="table table-sm mb-4">
             <tr>
-                <td class="metadata-key">Nombre:</td>
+                <td class="metadata-key" style="width: 40%;">Nombre:</td>
                 <td>${data.file_name || 'Sin nombre'}</td>
             </tr>
             <tr>
                 <td class="metadata-key">Tamaño:</td>
-                <td>${data.file_size || 'Desconocido'}</td>
+                <td>${data.file_size_formatted || 'Desconocido'}</td>
+            </tr>
+            <tr>
+                <td class="metadata-key">Tipo:</td>
+                <td><span class="badge bg-info">${data.url_type.toUpperCase()}</span></td>
+            </tr>
+            <tr>
+                <td class="metadata-key">Content-Type:</td>
+                <td>${data.content_type || 'N/A'}</td>
+            </tr>
+            <tr>
+                <td class="metadata-key">Estado HTTP:</td>
+                <td><span class="badge ${data.http_status_code == 200 ? 'bg-success' : 'bg-warning'}">${data.http_status_code || 'N/A'}</span></td>
             </tr>
             <tr>
                 <td class="metadata-key">URL:</td>
-                <td><a href="${data.url}" target="_blank">${data.url}</a></td>
+                <td><a href="${data.url}" target="_blank" class="text-break">${data.url}</a></td>
+            </tr>
+            ${data.referrer ? `
+            <tr>
+                <td class="metadata-key">Referrer:</td>
+                <td><a href="${data.referrer}" target="_blank" class="text-break small">${data.referrer}</a></td>
+            </tr>
+            ` : ''}
+            <tr>
+                <td class="metadata-key">Descubierto:</td>
+                <td>${data.discovered_at || 'N/A'}</td>
             </tr>
             <tr>
-                <td class="metadata-key">Hash SHA-256:</td>
-                <td><code>${data.file_hash || 'No calculado'}</code></td>
+                <td class="metadata-key">Procesado:</td>
+                <td>${data.processed_at || 'Pendiente'}</td>
             </tr>
+            ${data.file_hash ? `
+            <tr>
+                <td class="metadata-key">Hash SHA-256:</td>
+                <td><code class="small text-break">${data.file_hash}</code></td>
+            </tr>
+            ` : ''}
         </table>
+        
         ${metadataHtml}
     `;
-    
-    downloadBtn.onclick = () => downloadResult(data.id);
-    
-    const modal = new bootstrap.Modal(document.getElementById('detailsModal'));
-    modal.show();
+}
+
+function showErrorInModal(errorMessage) {
+    const modalContent = document.getElementById('modalContent');
+    modalContent.innerHTML = `
+        <div class="alert alert-danger">
+            <i class="bi bi-exclamation-triangle"></i>
+            <strong>Error:</strong> ${errorMessage}
+        </div>
+        <p class="text-muted">Por favor, intenta nuevamente o contacta al administrador si el problema persiste.</p>
+    `;
+}
+
+// Mostrar modal de detalles
+function showDetailsModal(data) {
+    // Esta función ahora solo se usa como fallback con datos de ejemplo
+    populateModalWithRealData({
+        ...data,
+        file_size_formatted: data.file_size || 'N/A',
+        url_type: 'pdf',
+        content_type: 'application/pdf',
+        http_status_code: 200,
+        discovered_at: new Date().toLocaleDateString(),
+        processed_at: new Date().toLocaleDateString(),
+        has_metadata: data.metadata && Object.keys(data.metadata).length > 0,
+        metadata_count: data.metadata ? Object.keys(data.metadata).length : 0,
+        metadata_categories: {},
+        metadata_items: data.metadata ? Object.entries(data.metadata).map(([key, value]) => ({key, value})) : []
+    });
 }
 
 // Descargar resultado
 function downloadResult(resultId) {
-    // Implementar descarga
-    window.location.href = `/crawler/api/result/${resultId}/download/`;
+    // Crear un enlace temporal para la descarga
+    const downloadUrl = `/crawler/api/result/${resultId}/download/`;
+    
+    // Opción 1: Descarga directa
+    // window.location.href = downloadUrl;
+    
+    // Opción 2: Abrir en nueva pestaña
+    window.open(downloadUrl, '_blank');
+}
+
+function downloadResultWithFeedback(resultId) {
+    const downloadUrl = `/crawler/api/result/${resultId}/download/`;
+    
+    // Mostrar indicador de descarga
+    const originalText = event.target.innerHTML;
+    event.target.innerHTML = '<i class="bi bi-arrow-down-circle"></i> Descargando...';
+    event.target.disabled = true;
+    
+    // Crear un iframe oculto para la descarga
+    const iframe = document.createElement('iframe');
+    iframe.style.display = 'none';
+    iframe.src = downloadUrl;
+    document.body.appendChild(iframe);
+    
+    // Restaurar botón después de un tiempo
+    setTimeout(() => {
+        event.target.innerHTML = originalText;
+        event.target.disabled = false;
+        document.body.removeChild(iframe);
+    }, 3000);
 }
 
 // Resaltar texto

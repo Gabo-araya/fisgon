@@ -49,7 +49,7 @@ def start_crawl_session(self, session_id: int):
         )
 
         # Agregar URL inicial a la cola
-        URLQueue.objects.get_or_create(
+        url_created = URLQueue.objects.get_or_create(
             session=session,
             url=session.target_url,
             defaults={
@@ -60,6 +60,11 @@ def start_crawl_session(self, session_id: int):
                 'referrer': ''  # URL inicial no tiene referrer
             }
         )
+        
+        # Actualizar contador de URLs descubiertas si se creó una nueva URL
+        if url_created[1]:  # get_or_create devuelve (object, created)
+            session.total_urls_discovered += 1
+            session.save()
 
         # Procesar robots.txt si está habilitado
         if session.respect_robots_txt:
@@ -151,27 +156,47 @@ def process_url_queue(self, session_id: int):
             session=session,
             status='pending'
         ).order_by('priority', 'discovered_at')[:10]  # Procesar en lotes de 10
+        
+        # Log para debugging
+        total_urls_in_queue = URLQueue.objects.filter(session=session).count()
+        logger.info(f'Session {session_id}: {pending_urls.count()} pending URLs, {total_urls_in_queue} total URLs in queue')
 
         if not pending_urls.exists():
             # No hay más URLs pendientes, verificar si completamos
-            if session.total_urls_processed >= session.max_pages:
+            if session.max_pages > 0 and session.total_urls_processed >= session.max_pages:
                 complete_crawl_session.delay(session_id)
                 return {'status': 'completed', 'reason': 'Max pages reached'}
+
+            # Verificar si hay URLs siendo procesadas actualmente
+            processing_urls = URLQueue.objects.filter(
+                session=session,
+                status='processing'
+            ).count()
+
+            if processing_urls > 0:
+                # Hay URLs siendo procesadas, esperar y reintentar
+                process_url_queue.apply_async(args=[session_id], countdown=15)
+                return {'status': 'waiting', 'reason': f'{processing_urls} URLs being processed'}
 
             # Esperar un poco más por si aparecen nuevas URLs
             time.sleep(5)
             remaining_urls = URLQueue.objects.filter(
                 session=session,
-                status='pending'
+                status__in=['pending', 'processing']
             ).count()
 
-            if remaining_urls == 0:
+            if remaining_urls == 0 and session.total_urls_processed > 0:
+                # Solo completar si hemos procesado al menos una URL
                 complete_crawl_session.delay(session_id)
                 return {'status': 'completed', 'reason': 'No more pending URLs'}
+            elif session.total_urls_processed == 0:
+                # Si no hemos procesado ninguna URL, podría ser un problema inicial
+                process_url_queue.apply_async(args=[session_id], countdown=10)
+                return {'status': 'retrying', 'reason': 'Initial URL processing'}
 
         processed_count = 0
         for url_item in pending_urls:
-            if session.total_urls_processed >= session.max_pages:
+            if session.max_pages > 0 and session.total_urls_processed >= session.max_pages:
                 break
 
             # Procesar URL individual
@@ -181,10 +206,13 @@ def process_url_queue(self, session_id: int):
             # Rate limiting
             time.sleep(1.0 / session.rate_limit)
 
-        # Continuar procesando si hay más URLs
+        # Continuar procesando si hay más URLs o si no se procesó nada pero podrían aparecer más
         if processed_count > 0:
-            # Programar próximo lote
+            # Programar próximo lote inmediatamente si se procesaron URLs
             process_url_queue.apply_async(args=[session_id], countdown=5)
+        elif URLQueue.objects.filter(session=session, status__in=['pending', 'processing']).exists():
+            # Si no se procesó nada pero aún hay URLs pendientes/procesando, reintentar
+            process_url_queue.apply_async(args=[session_id], countdown=10)
 
         return {'status': 'processing', 'processed': processed_count}
 
@@ -385,8 +413,11 @@ def extract_urls_from_html(self, session_id: int, url_queue_id: int, html_conten
                 )
                 urls_added += 1
         
-        # Log de URLs descubiertas
+        # Actualizar estadísticas de la sesión
         if urls_added > 0:
+            session.total_urls_discovered += urls_added
+            session.save()
+            
             CrawlLog.objects.create(
                 session=session,
                 level='INFO',
@@ -543,13 +574,13 @@ def save_and_extract_metadata(self, session_id: int, url_queue_id: int, content:
 
 @shared_task(bind=True)
 def extract_file_metadata(self, result_id: int):
-    '''Extrae metadatos de un archivo guardado usando extractores especializados'''
+    '''Extrae metadatos Y contenido completo de un archivo guardado'''
     try:
         result = CrawlResult.objects.get(id=result_id)
         
-        # Importar el módulo de extractores (se creará en el siguiente paso)
+        # Importar el módulo de extractores
         try:
-            from .extractors import extract_metadata_from_file
+            from .extractors import extract_metadata_from_file, extract_full_content_from_file
             
             # Extraer metadatos usando el extractor apropiado
             extracted_metadata = extract_metadata_from_file(
@@ -560,6 +591,17 @@ def extract_file_metadata(self, result_id: int):
             
             # Guardar metadatos extraídos
             result.metadata = extracted_metadata
+            
+            # NUEVA: Extracción de contenido completo
+            full_content = extract_full_content_from_file(result.file_path)
+            if full_content and full_content.strip():
+                # Aplicar límite de 1M caracteres
+                result.full_content = full_content[:1000000]
+                result.content_length = len(full_content)
+                result.content_extracted_at = timezone.now()
+                
+                logger.info(f"Contenido completo extraído: {len(full_content)} caracteres de {result.file_name}")
+            
             result.save()
             
             # Actualizar información adicional si está disponible
@@ -603,16 +645,20 @@ def extract_file_metadata(self, result_id: int):
         result.url_queue_item.metadata_extracted_at = timezone.now()
         result.url_queue_item.save()
         
-        # Log del éxito
+        # Log del éxito con información de contenido
+        log_details = {
+            'file_type': os.path.splitext(result.file_path)[1].lower(),
+            'metadata_fields_count': len(result.metadata),
+            'has_extraction_error': 'extraction_error' in result.metadata,
+            'content_characters': result.content_length,
+            'has_full_content': bool(result.full_content and result.full_content.strip())
+        }
+        
         CrawlLog.objects.create(
             session=result.session,
             level='INFO',
-            message=f'Metadatos extraídos exitosamente de {result.file_name}',
-            details={
-                'file_type': os.path.splitext(result.file_path)[1].lower(),
-                'metadata_fields_count': len(result.metadata),
-                'has_extraction_error': 'extraction_error' in result.metadata
-            }
+            message=f'Metadatos y contenido extraídos de {result.file_name}',
+            details=log_details
         )
         
         return {

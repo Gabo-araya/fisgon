@@ -1,45 +1,144 @@
-{% extends "panel/base_admin.html" %} 
+{% extends "panel/base_admin.html" %}
 {% load static %}
 
-{% block title %} {{ page }} {% endblock title %}
+{% block title %}{{ page }}{% endblock title %}
 
-<!-- Specific Page CSS goes HERE  -->
-{% block stylesheets %}{% endblock stylesheets %} 
+{% block stylesheets %}
+<style>
+.content-container {
+    max-height: 500px;
+    overflow-y: auto;
+    background: #f8f9fa;
+    border-radius: 0.375rem;
+    padding: 1rem;
+}
+.search-highlight {
+    background-color: yellow;
+    font-weight: bold;
+}
+.metadata-accordion .accordion-button:not(.collapsed) {
+    color: #0d6efd;
+    background-color: #e7f1ff;
+}
+.pattern-indicator {
+    font-size: 0.8rem;
+    margin-left: 0.5rem;
+}
+.copy-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 10;
+}
+.sensitive-data {
+    background-color: #fff3cd;
+    border-left: 4px solid #ffc107;
+    padding: 0.5rem;
+    margin: 0.5rem 0;
+}
+</style>
+{% endblock stylesheets %}
 
 {% block content %}
-
 <main id="main" class="main">
     <div class="pagetitle">
-        <h1>{{ page }}</h1>
-        {% include 'panel/breadcrumb.html' %}
+        <h1><i class="bi bi-file-text"></i> {{ page }}</h1>
+        <nav>
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'crawler:dashboard' %}">Crawler</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'crawler:session_detail' session.pk %}">{{ session.name }}</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'crawler:session_urls' session.pk %}">URLs</a></li>
+                <li class="breadcrumb-item active">Archivo</li>
+            </ol>
+        </nav>
     </div>
-    <!-- End Page Title -->
 
     <section class="section">
-        <!-- col-8 / col-4 -->
         <div class="container-fluid py-4">
-            <!-- Header -->
+            
+            <!-- Información General -->
             <div class="row mb-4">
                 <div class="col-12">
                     <div class="card">
                         <div class="card-body">
-                            <h3 class="card-title">
-                                <i class="{{ icon }}"></i> {{ page }}
-                            </h3>
+                            <h5 class="card-title">
+                                <i class="bi bi-info-circle"></i> Información General
+                            </h5>
                             <div class="row">
                                 <div class="col-md-6">
-                                    <p><strong>URL:</strong> <a href="{{ result.url_queue_item.url }}" target="_blank">{{ result.url_queue_item.url }}</a></p>
-                                    <p><strong>Referrer:</strong> 
-                                        {% if result.url_queue_item.referrer %}
-                                            <a href="{{ result.url_queue_item.referrer }}" target="_blank">{{ result.url_queue_item.referrer }}</a>
-                                        {% else %}
-                                            <em>N/A</em>
-                                        {% endif %}
-                                    </p>
+                                    <table class="table table-sm">
+                                        <tr>
+                                            <th width="30%">URL:</th>
+                                            <td>
+                                                <a href="{{ url_item.url }}" target="_blank" class="text-break">
+                                                    {{ url_item.url }}
+                                                    <i class="bi bi-box-arrow-up-right ms-1"></i>
+                                                </a>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th>Nombre:</th>
+                                            <td>{{ result.file_name|default:"No disponible" }}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Tipo:</th>
+                                            <td>
+                                                {% if url_item.url_type == 'pdf' %}
+                                                    <span class="badge bg-danger">PDF</span>
+                                                {% elif url_item.url_type == 'html' %}
+                                                    <span class="badge bg-info">HTML</span>
+                                                {% elif url_item.url_type in 'xlsx,xls' %}
+                                                    <span class="badge bg-success">EXCEL</span>
+                                                {% elif url_item.url_type in 'docx,doc' %}
+                                                    <span class="badge bg-primary">WORD</span>
+                                                {% elif url_item.url_type in 'odt,ods,odp' %}
+                                                    <span class="badge bg-warning">OPENOFFICE</span>
+                                                {% elif url_item.url_type in 'jpg,jpeg,png,gif' %}
+                                                    <span class="badge bg-secondary">IMAGEN</span>
+                                                {% else %}
+                                                    <span class="badge bg-dark">{{ url_item.url_type|upper|default:"?" }}</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th>Tamaño:</th>
+                                            <td>{{ url_item.file_size|filesizeformat|default:"No disponible" }}</td>
+                                        </tr>
+                                    </table>
                                 </div>
                                 <div class="col-md-6">
-                                    <p><strong>Sesión:</strong> <a href="{% url 'crawler:session_detail' session.pk %}">{{ session.name }}</a></p>
-                                    <p><strong>Descubierto:</strong> {{ result.url_queue_item.discovered_at|date:"d/m/Y H:i" }}</p>
+                                    <table class="table table-sm">
+                                        <tr>
+                                            <th width="30%">Estado HTTP:</th>
+                                            <td>
+                                                {% if url_item.http_status_code %}
+                                                    {% if url_item.http_status_code == 200 %}
+                                                        <span class="badge bg-success">{{ url_item.http_status_code }}</span>
+                                                    {% elif url_item.http_status_code >= 400 %}
+                                                        <span class="badge bg-danger">{{ url_item.http_status_code }}</span>
+                                                    {% else %}
+                                                        <span class="badge bg-warning">{{ url_item.http_status_code }}</span>
+                                                    {% endif %}
+                                                {% else %}
+                                                    <span class="text-muted">No disponible</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th>Procesado:</th>
+                                            <td>{{ result.created_at|date:"d/m/Y H:i:s" }}</td>
+                                        </tr>
+                                        <tr>
+                                            <th>Profundidad:</th>
+                                            <td>
+                                                <span class="badge bg-light text-dark">{{ url_item.depth }}</span>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <th>Hash:</th>
+                                            <td class="font-monospace small">{{ result.file_hash|truncatechars:16|default:"No disponible" }}</td>
+                                        </tr>
+                                    </table>
                                 </div>
                             </div>
                         </div>
@@ -47,100 +146,538 @@
                 </div>
             </div>
 
-            <!-- Metadatos por categoría -->
-            {% for category_name, category_data in metadata_categories.items %}
+            <!-- Contenido Completo -->
+            {% if has_content %}
             <div class="row mb-4">
                 <div class="col-12">
                     <div class="card">
-                        <div class="card-header">
-                            <h5 class="mb-0">
-                                {% if category_name == "Pdf" %}
-                                    <i class="bi bi-file-earmark-pdf text-danger"></i>
-                                {% elif category_name == "Office" %}
-                                    <i class="bi bi-file-earmark-word text-primary"></i>
-                                {% elif category_name == "Exif" %}
-                                    <i class="bi bi-camera text-success"></i>
-                                {% elif category_name == "Html" %}
-                                    <i class="bi bi-file-earmark-code text-warning"></i>
-                                {% elif category_name == "Multimedia" %}
-                                    <i class="bi bi-music-note text-info"></i>
-                                {% else %}
-                                    <i class="bi bi-info-circle"></i>
-                                {% endif %}
-                                Metadatos {{ category_name }}
-                            </h5>
-                        </div>
                         <div class="card-body">
-                            <div class="row">
-                                {% for key, value in category_data.items %}
-                                <div class="col-md-6 mb-3">
-                                    <div class="border-start border-primary border-3 ps-3">
-                                        <small class="text-muted text-uppercase">{{ key|title }}</small>
-                                        <div class="fw-bold">
-                                            {% if value %}
-                                                {% if 'http' in value|lower %}
-                                                    <a href="{{ value }}" target="_blank">{{ value }}</a>
-                                                {% elif 'coordinates' in key|lower %}
-                                                    <span class="text-danger">{{ value }}</span>
-                                                {% elif 'date' in key|lower or 'time' in key|lower %}
-                                                    <span class="text-info">{{ value }}</span>
-                                                {% else %}
-                                                    {{ value }}
-                                                {% endif %}
-                                            {% else %}
-                                                <em class="text-muted">N/A</em>
-                                            {% endif %}
-                                        </div>
-                                    </div>
+                            <h5 class="card-title">
+                                <i class="bi bi-file-text"></i> Contenido Completo
+                                <span class="badge bg-success ms-2">{{ content_length|floatformat:0 }} caracteres</span>
+                                {% if result.content_extracted_at %}
+                                    <small class="text-muted ms-2">
+                                        Extraído: {{ result.content_extracted_at|date:"d/m/Y H:i:s" }}
+                                    </small>
+                                {% endif %}
+                            </h5>
+                            
+                            <!-- Controles de contenido -->
+                            <div class="d-flex gap-2 mb-3 flex-wrap">
+                                <button class="btn btn-sm btn-outline-primary" onclick="toggleContentView()" id="toggleBtn">
+                                    <i class="bi bi-eye" id="toggleIcon"></i>
+                                    <span id="toggleText">Mostrar contenido</span>
+                                </button>
+                                <button class="btn btn-sm btn-outline-secondary" onclick="copyContent()">
+                                    <i class="bi bi-clipboard"></i> Copiar
+                                </button>
+                                <button class="btn btn-sm btn-outline-info" onclick="searchInContent()">
+                                    <i class="bi bi-search"></i> Buscar
+                                </button>
+                                <button class="btn btn-sm btn-outline-warning" onclick="showAnalysisModal()">
+                                    <i class="bi bi-graph-up"></i> Análisis
+                                </button>
+                            </div>
+                            
+                            <!-- Búsqueda en contenido -->
+                            <div id="searchContainer" class="d-none mb-3">
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="searchInput" 
+                                           placeholder="Buscar en contenido... (Ej: email, RUT, teléfono)"
+                                           onkeypress="if(event.key==='Enter') performSearch()">
+                                    <button class="btn btn-outline-primary" type="button" onclick="performSearch()">
+                                        <i class="bi bi-search"></i> Buscar
+                                    </button>
+                                    <button class="btn btn-outline-secondary" type="button" onclick="clearSearch()">
+                                        <i class="bi bi-x"></i> Limpiar
+                                    </button>
                                 </div>
-                                {% endfor %}
+                                <div id="searchResults" class="mt-2"></div>
+                            </div>
+                            
+                            <!-- Contenido colapsado por defecto -->
+                            <div id="contentContainer" class="d-none position-relative">
+                                <div class="content-container">
+                                    <pre id="fullContent" class="mb-0 small">{{ full_content|escape }}</pre>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
-            {% empty %}
-            <div class="row">
+            {% endif %}
+
+            <!-- Metadatos Extraídos -->
+            <div class="row mb-4">
                 <div class="col-12">
-                    <div class="alert alert-warning">
-                        <i class="bi bi-exclamation-triangle"></i>
-                        No se encontraron metadatos para este archivo.
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">
+                                <i class="bi bi-tags"></i> Metadatos Extraídos
+                                <span class="badge bg-info ms-2">{{ metadata_categories|length }} secciones</span>
+                            </h5>
+                            
+                            {% if metadata_categories %}
+                                <div class="accordion metadata-accordion" id="metadataAccordion">
+                                    {% for category_name, category_data in metadata_categories.items %}
+                                    <div class="accordion-item">
+                                        <h2 class="accordion-header">
+                                            <button class="accordion-button {% if not forloop.first %}collapsed{% endif %}" 
+                                                    type="button" 
+                                                    data-bs-toggle="collapse" 
+                                                    data-bs-target="#collapse{{ forloop.counter }}">
+                                                {% if category_name == "Pdf" %}
+                                                    <i class="bi bi-file-earmark-pdf text-danger me-2"></i>
+                                                {% elif category_name == "Office" %}
+                                                    <i class="bi bi-file-earmark-word text-primary me-2"></i>
+                                                {% elif category_name == "Exif" or category_name == "Image" %}
+                                                    <i class="bi bi-camera text-success me-2"></i>
+                                                {% elif category_name == "Html" %}
+                                                    <i class="bi bi-file-earmark-code text-warning me-2"></i>
+                                                {% elif category_name == "Multimedia" %}
+                                                    <i class="bi bi-music-note text-info me-2"></i>
+                                                {% elif category_name == "Odf" or category_name == "Document" %}
+                                                    <i class="bi bi-file-earmark-text text-secondary me-2"></i>
+                                                {% else %}
+                                                    <i class="bi bi-info-circle me-2"></i>
+                                                {% endif %}
+                                                {{ category_name|title }}
+                                                {% if category_data %}
+                                                    <span class="badge bg-secondary ms-2">{{ category_data|length }} campos</span>
+                                                {% endif %}
+                                            </button>
+                                        </h2>
+                                        <div id="collapse{{ forloop.counter }}" 
+                                             class="accordion-collapse collapse {% if forloop.first %}show{% endif %}">
+                                            <div class="accordion-body">
+                                                {% if category_data %}
+                                                    <div class="row">
+                                                        {% for key, value in category_data.items %}
+                                                        <div class="col-md-6 col-lg-4 mb-3">
+                                                            <div class="border-start border-primary border-3 ps-3">
+                                                                <small class="text-muted text-uppercase fw-bold">{{ key|title }}</small>
+                                                                <div class="mt-1">
+                                                                    {% if value %}
+                                                                        {% if 'SENSITIVE' in value|default:"" %}
+                                                                            <div class="sensitive-data">
+                                                                                <i class="bi bi-exclamation-triangle text-warning"></i>
+                                                                                <strong>Información sensible detectada</strong>
+                                                                                <div class="small">{{ value }}</div>
+                                                                            </div>
+                                                                        {% elif 'http' in value|lower|default:"" %}
+                                                                            <a href="{{ value }}" target="_blank" class="text-break">
+                                                                                {{ value|truncatechars:50 }}
+                                                                                <i class="bi bi-box-arrow-up-right ms-1"></i>
+                                                                            </a>
+                                                                        {% elif 'coordinates' in key|lower %}
+                                                                            <span class="text-danger fw-bold">
+                                                                                <i class="bi bi-geo-alt"></i> {{ value }}
+                                                                            </span>
+                                                                        {% elif 'date' in key|lower or 'time' in key|lower %}
+                                                                            <span class="text-info">
+                                                                                <i class="bi bi-calendar"></i> {{ value }}
+                                                                            </span>
+                                                                        {% elif key|lower == 'company' or key|lower == 'author' %}
+                                                                            <span class="fw-bold text-primary">{{ value }}</span>
+                                                                        {% else %}
+                                                                            <span class="text-break">{{ value|truncatechars:100 }}</span>
+                                                                        {% endif %}
+                                                                    {% else %}
+                                                                        <em class="text-muted">No disponible</em>
+                                                                    {% endif %}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        {% endfor %}
+                                                    </div>
+                                                {% else %}
+                                                    <div class="alert alert-info">
+                                                        <i class="bi bi-info-circle"></i>
+                                                        No hay datos disponibles para esta sección.
+                                                    </div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <div class="alert alert-warning">
+                                    <i class="bi bi-exclamation-triangle"></i>
+                                    No se encontraron metadatos para este archivo.
+                                </div>
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
             </div>
-            {% endfor %}
+
+            <!-- Sin Contenido Completo -->
+            {% if not has_content %}
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">
+                                <i class="bi bi-file-text text-muted"></i> Contenido Completo
+                            </h5>
+                            <div class="alert alert-warning">
+                                <i class="bi bi-exclamation-triangle"></i>
+                                <strong>No se extrajo contenido completo para este archivo.</strong>
+                                <div class="small mt-2">
+                                    <strong>Posibles razones:</strong>
+                                    <ul class="mb-0 mt-1">
+                                        <li>Tipo de archivo no soportado para extracción de contenido</li>
+                                        <li>Archivo demasiado grande (límite: 50MB)</li>
+                                        <li>Error durante el procesamiento</li>
+                                        <li>Archivo procesado antes de implementar extracción completa</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
 
             <!-- Acciones -->
             <div class="row">
                 <div class="col-12">
-                    <div class="d-flex gap-2">
-                        <a href="{% url 'crawler:session_detail' session.pk %}" class="btn btn-secondary">
-                            <i class="bi bi-arrow-left"></i> Volver a Sesión
-                        </a>
-                        <a href="{% url 'crawler:session_metadata_summary' session.pk %}" class="btn btn-info">
-                            <i class="bi bi-graph-up"></i> Resumen de Metadatos
-                        </a>
-                        {% if result.file_path and result.file_path|length > 0 %}
-                        <button class="btn btn-success" onclick="downloadFile('{{ result.file_hash }}')">
-                            <i class="bi bi-download"></i> Descargar Archivo
-                        </button>
-                        {% endif %}
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">
+                                <i class="bi bi-gear"></i> Acciones
+                            </h5>
+                            <div class="d-flex gap-2 flex-wrap">
+                                <a href="{% url 'crawler:session_urls' session.pk %}" class="btn btn-secondary">
+                                    <i class="bi bi-arrow-left"></i> Volver a URLs
+                                </a>
+                                <a href="{% url 'crawler:session_detail' session.pk %}" class="btn btn-outline-secondary">
+                                    <i class="bi bi-list-task"></i> Ver Sesión
+                                </a>
+                                {% if result.file_path %}
+                                <a href="{% url 'crawler:api_result_download' result.id %}" 
+                                   class="btn btn-primary" target="_blank">
+                                    <i class="bi bi-download"></i> Descargar Original
+                                </a>
+                                {% endif %}
+                                <a href="{% url 'crawler:session_metadata_summary' session.pk %}" class="btn btn-info">
+                                    <i class="bi bi-graph-up"></i> Resumen Sesión
+                                </a>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
-        <!-- end row -->
     </section>
 </main>
-<!-- End #main -->
+
+<!-- Modal de análisis avanzado -->
+<div class="modal fade" id="analysisModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-graph-up"></i> Análisis Avanzado del Contenido
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6><i class="bi bi-bar-chart"></i> Estadísticas:</h6>
+                        <table class="table table-sm">
+                            <tr><td><strong>Caracteres totales:</strong></td><td><span id="totalChars">-</span></td></tr>
+                            <tr><td><strong>Caracteres sin espacios:</strong></td><td><span id="charCount">-</span></td></tr>
+                            <tr><td><strong>Palabras:</strong></td><td><span id="wordCount">-</span></td></tr>
+                            <tr><td><strong>Líneas:</strong></td><td><span id="lineCount">-</span></td></tr>
+                            <tr><td><strong>Párrafos:</strong></td><td><span id="paragraphCount">-</span></td></tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <h6><i class="bi bi-shield-exclamation"></i> Detección de Patrones:</h6>
+                        <div id="patternDetection">
+                            <!-- Se llena dinámicamente -->
+                        </div>
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <h6><i class="bi bi-cloud-check"></i> Palabras más frecuentes:</h6>
+                        <div id="wordFrequency" class="d-flex flex-wrap gap-1">
+                            <!-- Se llena dinámicamente -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast para notificaciones -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
+    <div id="notificationToast" class="toast" role="alert">
+        <div class="toast-header">
+            <i class="bi bi-check-circle text-success me-2"></i>
+            <strong class="me-auto">Notificación</strong>
+            <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+        </div>
+        <div class="toast-body" id="toastMessage">
+            <!-- Mensaje dinámico -->
+        </div>
+    </div>
+</div>
 
 {% endblock content %}
 
 {% block javascripts %}
 <script>
-function downloadFile(fileHash) {
-    // Implementar descarga si es necesario
-    alert('Función de descarga pendiente de implementar');
+// Variables globales
+let contentVisible = false;
+let searchVisible = false;
+let originalContent = '';
+
+// Al cargar la página
+document.addEventListener('DOMContentLoaded', function() {
+    {% if has_content %}
+        originalContent = document.getElementById('fullContent')?.textContent || '';
+    {% endif %}
+});
+
+// Mostrar/Ocultar contenido
+function toggleContentView() {
+    const container = document.getElementById('contentContainer');
+    const icon = document.getElementById('toggleIcon');
+    const text = document.getElementById('toggleText');
+    
+    if (!container) return;
+    
+    if (contentVisible) {
+        container.classList.add('d-none');
+        icon.className = 'bi bi-eye';
+        text.textContent = 'Mostrar contenido';
+        contentVisible = false;
+    } else {
+        container.classList.remove('d-none');
+        icon.className = 'bi bi-eye-slash';
+        text.textContent = 'Ocultar contenido';
+        contentVisible = true;
+    }
+}
+
+// Copiar contenido
+function copyContent() {
+    if (!originalContent) {
+        showToast('No hay contenido para copiar', 'warning');
+        return;
+    }
+    
+    navigator.clipboard.writeText(originalContent).then(() => {
+        showToast('Contenido copiado al portapapeles', 'success');
+    }).catch(() => {
+        // Fallback para navegadores antiguos
+        const textArea = document.createElement('textarea');
+        textArea.value = originalContent;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        showToast('Contenido copiado', 'success');
+    });
+}
+
+// Mostrar/Ocultar búsqueda
+function searchInContent() {
+    const container = document.getElementById('searchContainer');
+    if (!container) return;
+    
+    searchVisible = !searchVisible;
+    
+    if (searchVisible) {
+        container.classList.remove('d-none');
+        document.getElementById('searchInput').focus();
+    } else {
+        container.classList.add('d-none');
+        clearSearch();
+    }
+}
+
+// Realizar búsqueda
+function performSearch() {
+    const query = document.getElementById('searchInput')?.value;
+    const resultsDiv = document.getElementById('searchResults');
+    const contentPre = document.getElementById('fullContent');
+    
+    if (!query || !resultsDiv || !contentPre) return;
+    
+    // Limpiar búsqueda anterior
+    clearSearch();
+    
+    // Buscar coincidencias (case insensitive)
+    const regex = new RegExp(`(${escapeRegex(query)})`, 'gi');
+    const matches = originalContent.match(regex);
+    
+    if (matches && matches.length > 0) {
+        // Mostrar resultados
+        resultsDiv.innerHTML = `
+            <div class="alert alert-info">
+                <i class="bi bi-search"></i> 
+                Encontradas <strong>${matches.length}</strong> coincidencias para "<strong>${escapeHtml(query)}</strong>"
+                <button class="btn btn-sm btn-outline-info ms-2" onclick="toggleContentView()">
+                    Ver en contenido
+                </button>
+            </div>
+        `;
+        
+        // Resaltar en el contenido
+        const highlightedContent = originalContent.replace(regex, '<mark class="search-highlight">$1</mark>');
+        contentPre.innerHTML = escapeHtml(highlightedContent).replace(/&lt;mark class="search-highlight"&gt;(.*?)&lt;\/mark&gt;/g, '<mark class="search-highlight">$1</mark>');
+        
+    } else {
+        resultsDiv.innerHTML = `
+            <div class="alert alert-warning">
+                <i class="bi bi-exclamation-triangle"></i> 
+                No se encontraron coincidencias para "<strong>${escapeHtml(query)}</strong>"
+            </div>
+        `;
+    }
+}
+
+// Limpiar búsqueda
+function clearSearch() {
+    const resultsDiv = document.getElementById('searchResults');
+    const contentPre = document.getElementById('fullContent');
+    const searchInput = document.getElementById('searchInput');
+    
+    if (resultsDiv) resultsDiv.innerHTML = '';
+    if (contentPre && originalContent) contentPre.textContent = originalContent;
+    if (searchInput) searchInput.value = '';
+}
+
+// Mostrar modal de análisis
+function showAnalysisModal() {
+    if (!originalContent) {
+        showToast('No hay contenido para analizar', 'warning');
+        return;
+    }
+    
+    // Calcular estadísticas
+    const totalChars = originalContent.length;
+    const chars = originalContent.replace(/\s/g, '').length;
+    const words = originalContent.split(/\s+/).filter(w => w.length > 0).length;
+    const lines = originalContent.split('\n').length;
+    const paragraphs = originalContent.split(/\n\s*\n/).filter(p => p.trim().length > 0).length;
+    
+    // Actualizar estadísticas
+    document.getElementById('totalChars').textContent = totalChars.toLocaleString();
+    document.getElementById('charCount').textContent = chars.toLocaleString();
+    document.getElementById('wordCount').textContent = words.toLocaleString();
+    document.getElementById('lineCount').textContent = lines.toLocaleString();
+    document.getElementById('paragraphCount').textContent = paragraphs.toLocaleString();
+    
+    // Detectar patrones sensibles
+    const patterns = [
+        { name: 'Emails', pattern: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g, icon: 'bi-envelope' },
+        { name: 'RUTs chilenos', pattern: /\b\d{1,2}\.\d{3}\.\d{3}-[\dkK]\b/g, icon: 'bi-person-vcard' },
+        { name: 'Teléfonos', pattern: /\b(\+56|56)?\s?[9]\s?\d{4}\s?\d{4}\b/g, icon: 'bi-telephone' },
+        { name: 'URLs', pattern: /https?:\/\/[^\s]+/g, icon: 'bi-link-45deg' },
+        { name: 'Números de cuenta', pattern: /\b\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}\b/g, icon: 'bi-credit-card' },
+        { name: 'Contraseñas', pattern: /\b(password|passwd|clave|token|key)\b/gi, icon: 'bi-key' }
+    ];
+    
+    const patternDiv = document.getElementById('patternDetection');
+    patternDiv.innerHTML = '';
+    
+    patterns.forEach(p => {
+        const matches = originalContent.match(p.pattern);
+        const count = matches ? matches.length : 0;
+        const color = count > 0 ? (count > 5 ? 'text-danger' : 'text-warning') : 'text-muted';
+        const bgColor = count > 0 ? (count > 5 ? 'bg-danger-subtle' : 'bg-warning-subtle') : 'bg-light';
+        
+        patternDiv.innerHTML += `
+            <div class="d-flex justify-content-between align-items-center p-2 mb-1 rounded ${bgColor}">
+                <div class="${color}">
+                    <i class="bi ${p.icon} me-1"></i>
+                    <strong>${p.name}:</strong>
+                </div>
+                <span class="badge ${count > 0 ? (count > 5 ? 'bg-danger' : 'bg-warning') : 'bg-secondary'}">${count}</span>
+            </div>
+        `;
+    });
+    
+    // Palabras más frecuentes (top 10)
+    const wordFreq = getWordFrequency(originalContent, 10);
+    const wordFreqDiv = document.getElementById('wordFrequency');
+    wordFreqDiv.innerHTML = '';
+    
+    wordFreq.forEach(([word, count]) => {
+        if (word.length > 2 && count > 1) { // Solo palabras significativas
+            wordFreqDiv.innerHTML += `
+                <span class="badge bg-primary me-1 mb-1">${word} (${count})</span>
+            `;
+        }
+    });
+    
+    // Mostrar modal
+    new bootstrap.Modal(document.getElementById('analysisModal')).show();
+}
+
+// Calcular frecuencia de palabras
+function getWordFrequency(text, limit = 10) {
+    // Palabras comunes a ignorar
+    const stopWords = new Set(['y', 'el', 'la', 'de', 'que', 'a', 'en', 'un', 'es', 'se', 'no', 'te', 'lo', 'le', 'da', 'su', 'por', 'son', 'con', 'para', 'al', 'del', 'los', 'las', 'una', 'sus', 'más', 'sin', 'pero', 'como', 'ese', 'esta', 'esto', 'hoja', 'página']);
+    
+    const words = text.toLowerCase()
+        .replace(/[^\w\sáéíóúüñ]/g, ' ')
+        .split(/\s+/)
+        .filter(word => word.length > 2 && !stopWords.has(word));
+    
+    const freq = {};
+    words.forEach(word => freq[word] = (freq[word] || 0) + 1);
+    
+    return Object.entries(freq)
+        .sort(([,a], [,b]) => b - a)
+        .slice(0, limit);
+}
+
+// Mostrar toast de notificación
+function showToast(message, type = 'info') {
+    const toast = document.getElementById('notificationToast');
+    const toastMessage = document.getElementById('toastMessage');
+    
+    if (!toast || !toastMessage) return;
+    
+    // Actualizar mensaje
+    toastMessage.textContent = message;
+    
+    // Actualizar icono según tipo
+    const header = toast.querySelector('.toast-header i');
+    if (header) {
+        header.className = `bi me-2 ${
+            type === 'success' ? 'bi-check-circle text-success' :
+            type === 'warning' ? 'bi-exclamation-triangle text-warning' :
+            type === 'error' ? 'bi-x-circle text-danger' :
+            'bi-info-circle text-info'
+        }`;
+    }
+    
+    // Mostrar toast
+    new bootstrap.Toast(toast).show();
+}
+
+// Funciones auxiliares
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function escapeRegex(string) {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 </script>
 {% endblock javascripts %}

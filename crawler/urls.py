@@ -38,6 +38,8 @@ urlpatterns = [
     # API endpoints
     path('api/sesiones/<int:pk>/status/', views.api_session_status, name='api_session_status'),
     path('api/dashboard/estadisticas/', views.api_dashboard_stats, name='api_dashboard_stats'),
+    path('api/result/<int:result_id>/details/', views.api_result_details, name='api_result_details'),
+    path('api/result/<int:result_id>/download/', views.api_result_download, name='api_result_download'),
 
     # Metadatos
     path('archivo/<int:result_id>/metadatos/', views.file_metadata_detail, name='file_metadata_detail'),
